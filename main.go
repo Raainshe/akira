@@ -52,7 +52,19 @@ func main() {
 		cancel()
 	}()
 
-	// Initialize services
+	// Check if this is a minimal command that doesn't need full service initialization
+	args := os.Args[1:]
+	if len(args) > 0 && (args[0] == "status" || args[0] == "stop" || args[0] == "--help" || args[0] == "-h") {
+		// Create minimal root command for status/stop commands
+		rootCmd := createMinimalRootCommand()
+		if err := rootCmd.Execute(); err != nil {
+			fmt.Fprintf(os.Stderr, "❌ Command failed: %v\n", err)
+			os.Exit(1)
+		}
+		return
+	}
+
+	// Initialize services for full commands
 	services, err := initializeServices(ctx)
 	if err != nil {
 		fmt.Fprintf(os.Stderr, "❌ Failed to initialize services: %v\n", err)
@@ -142,7 +154,33 @@ Examples:
 		cmd.NewDiskCommand(ctx, services.DiskService),
 		cmd.NewLogsCommand(ctx, services.Config),
 		cmd.NewSeedingCommand(ctx, services.SeedingService),
+		cmd.NewDaemonCommand(ctx, services.Config, services.TorrentService, services.DiskService, services.SeedingService, services.QBClient),
+		cmd.NewStatusCommand(),
+		cmd.NewStopCommand(),
+		cmd.NewRestartCommand(ctx, services.Config, services.TorrentService, services.DiskService, services.SeedingService, services.QBClient),
 		cmd.NewVersionCommand(version, buildTime, gitCommit),
+	)
+
+	return rootCmd
+}
+
+// createMinimalRootCommand creates a root command for minimal operations that don't need full service initialization
+func createMinimalRootCommand() *cobra.Command {
+	rootCmd := &cobra.Command{
+		Use:   "akira",
+		Short: "🌟 Akira - Beautiful Torrent Management CLI & TUI",
+		Long: `🌟 Akira - Beautiful Torrent Management CLI & TUI
+
+Akira provides both traditional CLI commands for automation and a beautiful 
+interactive TUI for monitoring and management. Choose the interface that 
+fits your workflow.`,
+		Version: fmt.Sprintf("%s (built: %s, commit: %s)", version, buildTime, gitCommit),
+	}
+
+	// Add only minimal commands that don't need service initialization
+	rootCmd.AddCommand(
+		cmd.NewStatusCommand(),
+		cmd.NewStopCommand(),
 	)
 
 	return rootCmd

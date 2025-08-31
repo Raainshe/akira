@@ -437,3 +437,10 @@
 {"component":"core","error":"path does not exist: stat /home/ryan/Work/github.com/raainshe/akira/C:\\Torrents: no such file or directory","level":"error","msg":"Failed to get disk space","path":"/home/ryan/Work/github.com/raainshe/akira/C:\\Torrents","time":"2025-08-31T15:53:19.346+02:00"}
 {"component":"core","error":"path does not exist: stat /home/ryan/Work/github.com/raainshe/akira/C:\\Torrents: no such file or directory","level":"error","msg":"Failed to get disk space","path":"/home/ryan/Work/github.com/raainshe/akira/C:\\Torrents","time":"2025-08-31T15:53:19.346+02:00"}
 {"component":"core","error":"path does not exist: stat /home/ryan/Work/github.com/raainshe/akira/C:\\Torrents: no such file or directory","level":"error","msg":"Failed to get disk space","path":"/home/ryan/Work/github.com/raainshe/akira/C:\\Torrents","time":"2025-08-31T15:53:19.346+02:00"}
+{"component":"main","level":"error","msg":"Seeding service errormap[error:seeding service is already running]","time":"2025-08-31T17:37:39.937+02:00"}
+{"component":"main","level":"error","msg":"Seeding service errormap[error:seeding service is already running]","time":"2025-08-31T17:47:59.536+02:00"}
+{"component":"main","level":"error","msg":"Seeding service errormap[error:seeding service is already running]","time":"2025-08-31T17:52:23.133+02:00"}
+{"component":"main","level":"error","msg":"Seeding service errormap[error:seeding service is already running]","time":"2025-08-31T17:53:39.517+02:00"}
+{"component":"main","level":"error","msg":"Seeding service errormap[error:seeding service is already running]","time":"2025-08-31T17:54:08.619+02:00"}
+{"component":"main","level":"error","msg":"Seeding service errormap[error:seeding service is already running]","time":"2025-08-31T18:04:27.350+02:00"}
+{"component":"main","level":"error","msg":"Seeding service errormap[error:seeding service is already running]","time":"2025-08-31T18:14:13.675+02:00"}

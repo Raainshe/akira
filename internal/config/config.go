@@ -22,8 +22,8 @@ type Config struct {
 
 // DiscordConfig holds Discord bot configuration
 type DiscordConfig struct {
-	BotToken string `json:"bot_token"`
-	GuildID  string `json:"guild_id"`
+	BotToken string   `json:"bot_token"`
+	GuildIDs []string `json:"guild_ids"`
 }
 
 // QBittorrentConfig holds qBittorrent client configuration
@@ -92,8 +92,11 @@ func LoadConfig() (*Config, error) {
 	config := &Config{}
 
 	// Load Discord configuration
-	config.Discord.BotToken = getEnvOrDefault("DISCORD_BOT_TOKKEN", "")
-	config.Discord.GuildID = getEnvOrDefault("DISCORD_GUILD_ID", "")
+	config.Discord.BotToken = getEnvOrDefault("DISCORD_BOT_TOKEN", "")
+	guildID := getEnvOrDefault("DISCORD_GUILD_ID", "")
+	if guildID != "" {
+		config.Discord.GuildIDs = []string{guildID}
+	}
 
 	// Load qBittorrent configuration
 	config.QBittorrent.URL = getEnvOrDefault("QBITTORRENT_URL", "http://localhost:8080")
@@ -160,7 +163,7 @@ func LoadConfig() (*Config, error) {
 // Validate checks that all required configuration is present and valid
 func (c *Config) Validate() error {
 	if c.Discord.BotToken == "" {
-		return fmt.Errorf("DISCORD_BOT_TOKKEN is required")
+		return fmt.Errorf("DISCORD_BOT_TOKEN is required")
 	}
 
 	if c.QBittorrent.URL == "" {

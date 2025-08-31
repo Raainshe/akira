@@ -322,12 +322,12 @@ Beautiful Bubbletea interface for rich user experience:
 
 ## Phase 6: Discord Bot Implementation
 
-### Step 17: Discord Bot Core (`internal/bot/bot.go`)
-- Initialize Discord session
-- Register slash commands
-- Handle bot events (ready, interaction)
-- Implement command routing
-- Add error handling and logging
+### Step 17: Discord Bot Core (`internal/bot/bot.go`) ✅ COMPLETED
+- ✅ Initialize Discord session
+- ✅ Register slash commands
+- ✅ Handle bot events (ready, interaction)
+- ✅ Implement command routing
+- ✅ Add error handling and logging
 
 ### Step 18: Discord Slash Commands (`internal/bot/commands/*.go`)
 Implement Discord equivalents of CLI commands:
@@ -369,13 +369,19 @@ Implement Discord equivalents of CLI commands:
 
 ## Phase 7: Daemon Mode Implementation
 
-### Step 20: Daemon Command (`cmd/daemon.go`)
+### Step 20: Daemon Command (`cmd/daemon.go`) ✅ COMPLETED
 Implement daemon mode that runs:
-- Discord bot in background goroutine
-- Seeding manager in background goroutine
-- Graceful shutdown handling (SIGINT, SIGTERM)
-- Health checking and restart logic
-- PID file management
+- ✅ Discord bot in background goroutine
+- ✅ Seeding manager in background goroutine
+- ✅ Graceful shutdown handling (SIGINT, SIGTERM)
+- ✅ Health checking and restart logic
+- ✅ PID file management
+
+### Step 21: Management Commands ✅ COMPLETED
+- ✅ `akira status` - Check if daemon is running
+- ✅ `akira daemon` - Start the daemon
+- ✅ `akira stop` - Stop the daemon gracefully
+- ✅ `akira restart` - Restart the daemon
 
 ### Step 21: Background Services Coordination
 - Shared context for shutdown coordination
