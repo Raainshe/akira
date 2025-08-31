@@ -2,7 +2,8 @@ package tui
 
 import (
 	"context"
-	"fmt"
+
+	tea "github.com/charmbracelet/bubbletea"
 
 	"github.com/raainshe/akira/internal/config"
 	"github.com/raainshe/akira/internal/core"
@@ -13,10 +14,17 @@ import (
 func Run(ctx context.Context, cfg *config.Config, torrentService *core.TorrentService,
 	diskService *core.DiskService, seedingService *core.SeedingService, qbClient *qbittorrent.Client) error {
 
-	// TODO: Implement full Bubbletea TUI
-	fmt.Println("🌟 Welcome to Akira TUI!")
-	fmt.Println("📋 This is a placeholder - full TUI implementation coming next!")
-	fmt.Println("💡 For now, use the CLI commands: akira list, akira add, etc.")
+	// Create the main TUI model
+	model := NewAppModel(ctx, cfg, torrentService, diskService, seedingService, qbClient)
 
-	return nil
+	// Create the Bubbletea program
+	program := tea.NewProgram(
+		model,
+		tea.WithAltScreen(),       // Use alternate screen buffer
+		tea.WithMouseCellMotion(), // Enable mouse support
+	)
+
+	// Run the program
+	_, err := program.Run()
+	return err
 }

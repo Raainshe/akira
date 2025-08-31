@@ -276,32 +276,32 @@ Beautiful Bubbletea interface for rich user experience:
 - Detailed info panel for selected torrent
 - Vim-style navigation (j/k, /, etc.)
 
-**Add Magnet Form (`internal/tui/add.go`)**:
-- Text input with magnet link validation
-- Category selection dropdown
-- Path override option
-- Real-time validation feedback
-- Progress indication during submission
+**Add Magnet Form (`internal/tui/models/models.go`)**:
+- ✅ Text input with magnet link validation
+- ✅ Category selection dropdown
+- ✅ Path override option
+- ✅ Real-time validation feedback
+- ✅ Progress indication during submission
 
-**Seeding Management (`internal/tui/seeding.go`)**:
-- List of all tracked torrents with time remaining
-- Progress bars for seeding time vs. target
-- Bulk operations (stop multiple, change multiplier)
-- Detailed statistics and analytics
-- Interactive stop confirmations
+**Seeding Management (`internal/tui/models/models.go`)**:
+- ✅ List of all tracked torrents with time remaining
+- ✅ Progress bars for seeding time vs. target
+- ✅ Detailed statistics and analytics
+- ✅ Interactive navigation and selection
+- ⏳ Bulk operations (stop multiple, change multiplier)
 
-**Disk Usage View (`internal/tui/disk.go`)**:
-- Visual disk usage bars for all paths
-- Real-time updates every 30 seconds
-- Health indicators and warnings
-- Path-specific details and history
+**Disk Usage View (`internal/tui/models/models.go`)**:
+- ✅ Visual disk usage bars for all paths
+- ✅ Real-time updates every 15 seconds
+- ✅ Health indicators and warnings
+- ✅ Path-specific details and history
 
-**Logs Viewer (`internal/tui/logs.go`)**:
-- Scrollable log viewer with syntax highlighting
-- Filter by level, component, time range
-- Search functionality
-- Auto-follow mode for real-time updates
-- Export logs functionality
+**Logs Viewer (`internal/tui/models/models.go`)**:
+- ✅ Scrollable log viewer with syntax highlighting
+- ✅ Filter by level (all, error, warn, info, debug)
+- ✅ Interactive navigation and selection
+- ⏳ Search functionality
+- ⏳ Auto-follow mode for real-time updates
 
 ### Step 16: Comprehensive Testing
 - **CLI Commands**: Test all flags, edge cases, error handling
