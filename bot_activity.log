@@ -25,3 +25,56 @@
 {"component":"cache","deletes":1,"evictions":1,"hit_ratio":"71.43%","hits":5,"item_count":3,"level":"info","misses":2,"msg":"Cache statistics","sets":4,"time":"2025-08-31T12:39:04.786+02:00","uptime":"2.001979256s"}
 {"component":"cache","level":"info","msg":"Cache statistics reset","time":"2025-08-31T12:39:04.786+02:00"}
 {"component":"cache","level":"info","msg":"Cache cleared","time":"2025-08-31T12:39:04.786+02:00"}
+{"component":"main","level":"info","msg":"Logger initialized successfully","time":"2025-08-31T12:54:00.670+02:00"}
+{"base_url":"http://172.31.64.1:8080","component":"qbittorrent","level":"info","msg":"qBittorrent client created","time":"2025-08-31T12:54:00.671+02:00","timeout":30000000000,"username":"admin"}
+{"component":"qbittorrent","level":"info","msg":"Authenticating with qBittorrent","time":"2025-08-31T12:54:00.671+02:00"}
+{"component":"qbittorrent","level":"info","msg":"Authentication successful","time":"2025-08-31T12:54:00.741+02:00"}
+{"component":"qbittorrent","count":0,"level":"info","msg":"Torrents fetched successfully","time":"2025-08-31T12:54:00.746+02:00"}
+{"component":"qbittorrent","error":"qBittorrent API error 404: 404 Not Found (Not Found)","hash":"invalid_hash_12345","level":"error","msg":"Failed to fetch torrent properties","time":"2025-08-31T12:54:00.757+02:00"}
+{"component":"qbittorrent","count":1,"hashes":["nonexistent_hash"],"level":"info","msg":"Pausing torrents","time":"2025-08-31T12:54:00.760+02:00"}
+{"component":"qbittorrent","error":"qBittorrent API error 404: 404 Not Found (Not Found)","level":"error","msg":"Failed to pause torrents","time":"2025-08-31T12:54:00.763+02:00"}
+{"component":"qbittorrent","level":"info","msg":"Logging out from qBittorrent","time":"2025-08-31T12:54:00.763+02:00"}
+{"component":"qbittorrent","level":"info","msg":"Logout completed","time":"2025-08-31T12:54:00.765+02:00"}
+{"component":"main","level":"info","msg":"Logger initialized successfully","time":"2025-08-31T13:00:28.646+02:00"}
+{"auth_session_ttl":3600000000000,"cleanup_interval":600000000000,"component":"cache","disk_space_ttl":300000000000,"level":"info","max_items":1000,"msg":"Cache manager initialized successfully","time":"2025-08-31T13:00:28.647+02:00"}
+{"base_url":"http://172.31.64.1:8080","component":"qbittorrent","level":"info","msg":"qBittorrent client created","time":"2025-08-31T13:00:28.647+02:00","timeout":30000000000,"username":"admin"}
+{"component":"qbittorrent","level":"info","msg":"Authenticating with qBittorrent","time":"2025-08-31T13:00:28.649+02:00"}
+{"component":"qbittorrent","level":"info","msg":"Authentication successful","time":"2025-08-31T13:00:28.708+02:00"}
+{"component":"qbittorrent","count":0,"level":"info","msg":"Torrents fetched successfully","time":"2025-08-31T13:00:28.709+02:00"}
+{"component":"core","filter_applied":false,"level":"info","msg":"Torrents retrieved and filtered","time":"2025-08-31T13:00:28.709+02:00","total_count":0}
+{"component":"qbittorrent","count":0,"level":"info","msg":"Torrents fetched successfully","time":"2025-08-31T13:00:28.711+02:00"}
+{"component":"core","filter_applied":true,"level":"info","msg":"Torrents retrieved and filtered","time":"2025-08-31T13:00:28.711+02:00","total_count":0}
+{"component":"qbittorrent","count":0,"level":"info","msg":"Torrents fetched successfully","time":"2025-08-31T13:00:28.712+02:00"}
+{"component":"core","filter_applied":true,"level":"info","msg":"Torrents retrieved and filtered","time":"2025-08-31T13:00:28.712+02:00","total_count":0}
+{"component":"qbittorrent","count":0,"level":"info","msg":"Torrents fetched successfully","time":"2025-08-31T13:00:28.714+02:00"}
+{"component":"core","filter_applied":true,"level":"info","msg":"Torrents retrieved and filtered","time":"2025-08-31T13:00:28.714+02:00","total_count":0}
+{"component":"qbittorrent","count":0,"level":"info","msg":"Torrents fetched successfully","time":"2025-08-31T13:00:28.715+02:00"}
+{"component":"core","filter_applied":true,"level":"info","msg":"Torrents retrieved and filtered","time":"2025-08-31T13:00:28.715+02:00","total_count":0}
+{"component":"qbittorrent","count":0,"level":"info","msg":"Torrents fetched successfully","time":"2025-08-31T13:00:28.716+02:00"}
+{"component":"core","filter_applied":true,"level":"info","msg":"Torrents retrieved and filtered","time":"2025-08-31T13:00:28.716+02:00","total_count":0}
+{"component":"qbittorrent","count":0,"level":"info","msg":"Torrents fetched successfully","time":"2025-08-31T13:00:28.718+02:00"}
+{"component":"core","filter_applied":true,"level":"info","msg":"Torrents retrieved and filtered","time":"2025-08-31T13:00:28.718+02:00","total_count":0}
+{"component":"qbittorrent","count":0,"level":"info","msg":"Torrents fetched successfully","time":"2025-08-31T13:00:28.719+02:00"}
+{"component":"core","filter_applied":true,"level":"info","msg":"Torrents retrieved and filtered","time":"2025-08-31T13:00:28.719+02:00","total_count":0}
+{"component":"qbittorrent","count":0,"level":"info","msg":"Torrents fetched successfully","time":"2025-08-31T13:00:28.721+02:00"}
+{"completed":0,"component":"core","downloading":0,"level":"info","msg":"Torrent statistics calculated","seeding":0,"time":"2025-08-31T13:00:28.721+02:00","total":0}
+{"category":"movies","component":"core","level":"info","msg":"Adding magnet link with business logic","save_path":"","tags":["test","validation"],"time":"2025-08-31T13:00:28.721+02:00"}
+{"component":"core","error":"magnet URI cannot be empty","level":"error","msg":"Invalid magnet URI","time":"2025-08-31T13:00:28.721+02:00"}
+{"category":"movies","component":"core","level":"info","msg":"Adding magnet link with business logic","save_path":"","tags":["test","validation"],"time":"2025-08-31T13:00:28.721+02:00"}
+{"component":"core","error":"invalid magnet URI format","level":"error","msg":"Invalid magnet URI","time":"2025-08-31T13:00:28.721+02:00"}
+{"category":"movies","component":"core","level":"info","msg":"Adding magnet link with business logic","save_path":"","tags":["test","validation"],"time":"2025-08-31T13:00:28.721+02:00"}
+{"component":"core","error":"magnet URI missing required xt parameter","level":"error","msg":"Invalid magnet URI","time":"2025-08-31T13:00:28.721+02:00"}
+{"component":"qbittorrent","count":0,"level":"info","msg":"Torrents fetched successfully","time":"2025-08-31T13:00:28.723+02:00"}
+{"component":"core","filter_applied":true,"level":"info","msg":"Torrents retrieved and filtered","time":"2025-08-31T13:00:28.723+02:00","total_count":0}
+{"component":"qbittorrent","count":0,"level":"info","msg":"Torrents fetched successfully","time":"2025-08-31T13:00:28.724+02:00"}
+{"component":"core","filter_applied":true,"level":"info","msg":"Torrents retrieved and filtered","time":"2025-08-31T13:00:28.724+02:00","total_count":0}
+{"component":"qbittorrent","count":0,"level":"info","msg":"Torrents fetched successfully","time":"2025-08-31T13:00:28.726+02:00"}
+{"component":"core","filter_applied":true,"level":"info","msg":"Torrents retrieved and filtered","time":"2025-08-31T13:00:28.726+02:00","total_count":0}
+{"component":"qbittorrent","count":0,"level":"info","msg":"Torrents fetched successfully","time":"2025-08-31T13:00:28.727+02:00"}
+{"component":"core","filter_applied":true,"level":"info","msg":"Torrents retrieved and filtered","time":"2025-08-31T13:00:28.727+02:00","total_count":0}
+{"component":"qbittorrent","count":0,"level":"info","msg":"Torrents fetched successfully","time":"2025-08-31T13:00:28.728+02:00"}
+{"component":"core","filter_applied":true,"level":"info","msg":"Torrents retrieved and filtered","time":"2025-08-31T13:00:28.728+02:00","total_count":0}
+{"component":"cache","level":"info","msg":"Shutting down cache manager","time":"2025-08-31T13:00:28.728+02:00"}
+{"component":"cache","deletes":0,"evictions":0,"hit_ratio":"0.00%","hits":0,"item_count":0,"level":"info","misses":0,"msg":"Cache statistics","sets":0,"time":"2025-08-31T13:00:28.728+02:00","uptime":"81.636076ms"}
+{"component":"cache","level":"info","msg":"Cache statistics reset","time":"2025-08-31T13:00:28.728+02:00"}
+{"component":"cache","level":"info","msg":"Cache cleared","time":"2025-08-31T13:00:28.728+02:00"}
