@@ -1,0 +1,19 @@
+{"component":"main","level":"info","msg":"Logger initialized successfully","time":"2025-08-31T12:26:02.633+02:00"}
+{"component":"main","level":"info","msg":"Testing main logger - Info level","time":"2025-08-31T12:26:02.633+02:00"}
+{"component":"main","level":"warning","msg":"Testing main logger - Warning level","time":"2025-08-31T12:26:02.633+02:00"}
+{"component":"discord_bot","level":"info","msg":"Testing Discord bot logger","time":"2025-08-31T12:26:02.633+02:00"}
+{"component":"qbittorrent","level":"info","msg":"Testing qBittorrent logger","time":"2025-08-31T12:26:02.633+02:00"}
+{"component":"cli","level":"info","msg":"Testing CLI logger","time":"2025-08-31T12:26:02.633+02:00"}
+{"component":"seeding_manager","level":"info","msg":"Testing seeding manager logger","time":"2025-08-31T12:26:02.633+02:00"}
+{"component":"main","level":"info","msg":"Testing structured logging with multiple fields","test_field_1":"value1","test_field_2":42,"test_field_3":true,"time":"2025-08-31T12:26:02.633+02:00"}
+{"component":"main","error":"this is a test error","level":"error","msg":"Testing error logging","time":"2025-08-31T12:26:02.633+02:00"}
+{"args":["arg1","arg2"],"command":"test-command","component":"cli","level":"info","msg":"CLI command executed","time":"2025-08-31T12:26:02.633+02:00","user":"test-user"}
+{"action":"torrent_added","category":"movies","component":"qbittorrent","level":"info","magnet_uri":"magnet:?xt=urn:btih:...st+Torrent","msg":"Torrent added successfully","save_path":"/downloads/movies","time":"2025-08-31T12:26:02.633+02:00"}
+{"action":"torrent_completed","component":"qbittorrent","download_duration":"5m30s","level":"info","msg":"Torrent download completed","time":"2025-08-31T12:26:02.633+02:00","torrent_hash":"1234567890abcdef","torrent_name":"Test Torrent"}
+{"command":"torrents","component":"discord_bot","guild_id":"987654321","level":"info","msg":"Discord command executed","options":{"filter":"downloading"},"time":"2025-08-31T12:26:02.633+02:00","user_id":"123456789"}
+{"component":"main","level":"info","msg":"This should always show (INFO level)","time":"2025-08-31T12:26:02.633+02:00"}
+{"component":"main","level":"warning","msg":"This should show (WARN level)","time":"2025-08-31T12:26:02.633+02:00"}
+{"component":"main","level":"info","msg":"Log level changed to: debug","time":"2025-08-31T12:26:02.633+02:00"}
+{"component":"main","level":"debug","msg":"This debug message should now be visible","time":"2025-08-31T12:26:02.633+02:00"}
+{"component":"main","level":"info","msg":"Log level changed to: info","time":"2025-08-31T12:26:02.633+02:00"}
+{"component":"main","level":"info","msg":"Shutting down logging system","time":"2025-08-31T12:26:02.734+02:00"}
