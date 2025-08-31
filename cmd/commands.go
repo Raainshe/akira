@@ -3,9 +3,11 @@ package cmd
 import (
 	"context"
 	"fmt"
+	"strings"
 
 	"github.com/spf13/cobra"
 
+	"github.com/raainshe/akira/internal/cli"
 	"github.com/raainshe/akira/internal/config"
 	"github.com/raainshe/akira/internal/core"
 	"github.com/raainshe/akira/internal/qbittorrent"
@@ -36,19 +38,29 @@ func NewListCommand(ctx context.Context, torrentService *core.TorrentService) *c
 	cmd := &cobra.Command{
 		Use:   "list",
 		Short: "📋 List torrents",
-		Long:  "List torrents with filtering and formatting options",
+		Long: `📋 List torrents with filtering and formatting options
+
+This command displays all torrents with a beautiful table format including:
+- Progress bars and completion status
+- Download/upload speeds and ETA
+- Color-coded states (downloading, seeding, paused, error)
+- Filtering by category and state
+- JSON output for scripting
+
+Examples:
+  akira list                           # Show all torrents
+  akira list --category movies         # Show only movies
+  akira list --seeding-only           # Show only seeding torrents
+  akira list --state downloading      # Show only downloading
+  akira list --json                   # JSON output for scripts`,
 		RunE: func(cmd *cobra.Command, args []string) error {
-			// TODO: Implement list command
-			fmt.Println("📋 List command - Coming soon!")
-			fmt.Printf("Filters: category=%s, state=%s, seeding-only=%v, json=%v\n",
-				category, state, seedingOnly, jsonOutput)
-			return nil
+			return runListCommand(ctx, torrentService, category, state, seedingOnly, jsonOutput)
 		},
 	}
 
-	cmd.Flags().StringVarP(&category, "category", "", "", "filter by category (series, movies, anime)")
-	cmd.Flags().StringVarP(&state, "state", "", "", "filter by state (downloading, seeding, paused)")
-	cmd.Flags().BoolVarP(&seedingOnly, "seeding-only", "s", false, "show only seeding torrents")
+	cmd.Flags().StringVar(&category, "category", "", "filter by category (series, movies, anime)")
+	cmd.Flags().StringVarP(&state, "state", "s", "", "filter by state (downloading, seeding, paused, error)")
+	cmd.Flags().BoolVar(&seedingOnly, "seeding-only", false, "show only seeding torrents")
 	cmd.Flags().BoolVarP(&jsonOutput, "json", "j", false, "output in JSON format")
 
 	return cmd
@@ -214,4 +226,80 @@ func NewVersionCommand(version, buildTime, gitCommit string) *cobra.Command {
 			fmt.Printf("Commit: %s\n", gitCommit)
 		},
 	}
+}
+
+// runListCommand implements the list command functionality
+func runListCommand(ctx context.Context, torrentService *core.TorrentService,
+	category, state string, seedingOnly, jsonOutput bool) error {
+
+	// Create filter options
+	filter := &core.TorrentFilter{}
+
+	// Apply category filter
+	if category != "" {
+		// Validate category
+		validCategories := []string{"series", "movies", "anime"}
+		categoryLower := strings.ToLower(category)
+		isValid := false
+		for _, valid := range validCategories {
+			if categoryLower == valid {
+				isValid = true
+				break
+			}
+		}
+		if !isValid {
+			return fmt.Errorf("invalid category '%s'. Valid categories: %v", category, validCategories)
+		}
+		filter.Category = categoryLower
+	}
+
+	// Apply state filter
+	if state != "" {
+		stateLower := strings.ToLower(state)
+		// Map user-friendly state names to qBittorrent states
+		switch stateLower {
+		case "downloading":
+			filter.State = qbittorrent.StateDownloading
+		case "seeding":
+			filter.State = qbittorrent.StateUploading
+		case "paused":
+			filter.State = qbittorrent.StatePausedDL // Will also match paused upload
+		case "error":
+			filter.State = qbittorrent.StateError
+		default:
+			// Try to use the state directly as TorrentState
+			filter.State = qbittorrent.TorrentState(state)
+		}
+	}
+
+	// Apply seeding-only filter
+	if seedingOnly {
+		filter.State = qbittorrent.StateUploading
+	}
+
+	// Get torrents from service
+	torrents, err := torrentService.GetTorrents(ctx, filter)
+	if err != nil {
+		return fmt.Errorf("failed to get torrents: %w", err)
+	}
+
+	// Additional filtering for paused state (since qBittorrent has multiple paused states)
+	if state != "" && strings.ToLower(state) == "paused" {
+		var filteredTorrents []qbittorrent.Torrent
+		for _, torrent := range torrents {
+			if strings.Contains(strings.ToLower(string(torrent.State)), "paused") {
+				filteredTorrents = append(filteredTorrents, torrent)
+			}
+		}
+		torrents = filteredTorrents
+	}
+
+	// Convert to pointer slice for the table formatter
+	torrentPtrs := make([]*qbittorrent.Torrent, len(torrents))
+	for i := range torrents {
+		torrentPtrs[i] = &torrents[i]
+	}
+
+	// Print results
+	return cli.PrintTorrentTable(torrentPtrs, jsonOutput)
 }
