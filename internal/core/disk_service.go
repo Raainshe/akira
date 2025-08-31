@@ -3,8 +3,10 @@ package core
 import (
 	"context"
 	"fmt"
+	"os"
 	"path/filepath"
 	"runtime"
+	"syscall"
 	"time"
 
 	"github.com/raainshe/akira/internal/cache"
@@ -224,28 +226,40 @@ func (ds *DiskService) FormatDiskInfo(diskInfo *DiskInfo) string {
 
 // getDiskSpacePlatform gets disk space using platform-specific methods
 func (ds *DiskService) getDiskSpacePlatform(path string) (*DiskInfo, error) {
-	// For now, we'll use a simplified implementation that works across platforms
-	// In a production system, you'd want platform-specific implementations
+	ds.logger.WithField("platform", runtime.GOOS).Debug("Getting real disk space information")
 
-	// This is a placeholder implementation that provides reasonable estimates
-	// Real implementation would use syscalls for accurate disk space information
+	// Get file info to ensure path exists
+	_, err := os.Stat(path)
+	if err != nil {
+		return nil, fmt.Errorf("path does not exist: %w", err)
+	}
 
-	ds.logger.WithField("platform", runtime.GOOS).Debug("Using simplified disk space implementation")
+	// Get filesystem statistics
+	var stat syscall.Statfs_t
+	err = syscall.Statfs(path, &stat)
+	if err != nil {
+		return nil, fmt.Errorf("failed to get filesystem stats: %w", err)
+	}
 
-	// Return mock data for now - in a real implementation, this would use:
-	// - Windows: GetDiskFreeSpaceEx
-	// - Unix/Linux: statfs/statvfs syscalls
-	// - macOS: statfs syscalls
+	// Calculate space in bytes
+	blockSize := int64(stat.Bsize)
+	total := int64(stat.Blocks) * blockSize
+	free := int64(stat.Bavail) * blockSize // Available to non-root users
+	used := total - (int64(stat.Bfree) * blockSize)
+
+	// Calculate percentages
+	usedPercent := ds.calculatePercentage(used, total)
+	freePercent := ds.calculatePercentage(free, total)
 
 	return &DiskInfo{
 		Path:        path,
-		Total:       1000000000000, // 1TB mock
-		Used:        600000000000,  // 600GB mock
-		Free:        400000000000,  // 400GB mock
-		Available:   400000000000,  // 400GB mock
-		UsedPercent: 60.0,
-		FreePercent: 40.0,
-		Filesystem:  "unknown",
+		Total:       total,
+		Used:        used,
+		Free:        free,
+		Available:   free,
+		UsedPercent: usedPercent,
+		FreePercent: freePercent,
+		Filesystem:  "unknown", // Could be enhanced to detect filesystem type
 		MountPoint:  path,
 		LastChecked: time.Now(),
 	}, nil

@@ -14,6 +14,13 @@ import (
 	"github.com/raainshe/akira/internal/qbittorrent"
 )
 
+// AddTorrentRequest represents a request to add a torrent
+type AddTorrentRequest struct {
+	MagnetURI string `json:"magnet_uri"`          // Magnet URI to add
+	Category  string `json:"category,omitempty"`  // Torrent category (series, movies, anime)
+	SavePath  string `json:"save_path,omitempty"` // Custom save path (overrides category path)
+}
+
 // TorrentService provides high-level business logic for torrent operations
 type TorrentService struct {
 	client *qbittorrent.Client
@@ -179,63 +186,53 @@ func (ts *TorrentService) SearchTorrents(ctx context.Context, pattern string) ([
 }
 
 // AddMagnet adds a magnet link with business logic and validation
-func (ts *TorrentService) AddMagnet(ctx context.Context, magnetURI string, options AddTorrentOptions) error {
+func (ts *TorrentService) AddMagnet(ctx context.Context, request *AddTorrentRequest) error {
+	if request == nil {
+		return fmt.Errorf("add torrent request cannot be nil")
+	}
+
 	ts.logger.WithFields(map[string]interface{}{
-		"category":  options.Category,
-		"save_path": options.SavePath,
-		"tags":      options.Tags,
+		"category":  request.Category,
+		"save_path": request.SavePath,
 	}).Info("Adding magnet link with business logic")
 
 	// Validate magnet URI
-	if err := ts.validateMagnetURI(magnetURI); err != nil {
+	if err := ts.validateMagnetURI(request.MagnetURI); err != nil {
 		ts.logger.WithError(err).Error("Invalid magnet URI")
 		return fmt.Errorf("invalid magnet URI: %w", err)
 	}
 
 	// Validate and normalize category
-	if options.Category != "" {
-		if !ts.isValidCategory(options.Category) {
-			return fmt.Errorf("invalid category: %s (valid: %v)", options.Category, ts.config.GetValidCategories())
+	if request.Category != "" {
+		if !ts.isValidCategory(request.Category) {
+			return fmt.Errorf("invalid category: %s (valid: %v)", request.Category, ts.config.GetValidCategories())
 		}
 	} else {
-		options.Category = "default"
+		request.Category = "default"
 	}
 
 	// Determine save path
-	savePath := options.SavePath
+	savePath := request.SavePath
 	if savePath == "" {
-		savePath = ts.config.GetSavePathForCategory(options.Category)
+		savePath = ts.config.GetSavePathForCategory(request.Category)
 	}
 
 	// Convert to qBittorrent request format
 	qbitOptions := qbittorrent.AddTorrentRequest{
-		Category:               options.Category,
-		SavePath:               savePath,
-		Paused:                 options.Paused,
-		SkipChecking:           options.SkipChecking,
-		Tags:                   strings.Join(options.Tags, ","),
-		UpLimit:                options.UploadLimit,
-		DlLimit:                options.DownloadLimit,
-		RatioLimit:             options.RatioLimit,
-		SeedingTimeLimit:       int64(options.SeedingTimeLimit.Seconds()),
-		SequentialDownload:     options.SequentialDownload,
-		FirstLastPiecePriority: options.FirstLastPriority,
+		Category: request.Category,
+		SavePath: savePath,
 	}
 
 	// Add the magnet link
-	err := ts.client.AddMagnet(ctx, magnetURI, qbitOptions)
+	err := ts.client.AddMagnet(ctx, request.MagnetURI, qbitOptions)
 	if err != nil {
 		ts.logger.WithError(err).Error("Failed to add magnet link")
 		return fmt.Errorf("failed to add magnet link: %w", err)
 	}
 
-	// Log the successful addition
-	logging.LogTorrentAdded(magnetURI, options.Category, savePath)
-
 	ts.logger.WithFields(map[string]interface{}{
-		"category":  options.Category,
+		"category":  request.Category,
 		"save_path": savePath,
-		"tags":      options.Tags,
 	}).Info("Magnet link added successfully")
 
 	return nil
@@ -286,6 +283,54 @@ func (ts *TorrentService) DeleteTorrents(ctx context.Context, hashes []string, d
 
 	ts.logger.WithField("count", len(hashes)).Info("Torrents deleted successfully")
 	return nil
+}
+
+// FindTorrentsByPattern finds torrents matching a name pattern
+func (ts *TorrentService) FindTorrentsByPattern(ctx context.Context, pattern string) ([]qbittorrent.Torrent, error) {
+	if pattern == "" {
+		return nil, fmt.Errorf("search pattern cannot be empty")
+	}
+
+	// Get all torrents first
+	allTorrents, err := ts.GetTorrents(ctx, &TorrentFilter{})
+	if err != nil {
+		return nil, fmt.Errorf("failed to get torrents: %w", err)
+	}
+
+	// Filter by pattern (case-insensitive)
+	var matchingTorrents []qbittorrent.Torrent
+	lowerPattern := strings.ToLower(pattern)
+
+	for _, torrent := range allTorrents {
+		if strings.Contains(strings.ToLower(torrent.Name), lowerPattern) {
+			matchingTorrents = append(matchingTorrents, torrent)
+		}
+	}
+
+	return matchingTorrents, nil
+}
+
+// FindTorrentByHash finds a torrent by its exact hash
+func (ts *TorrentService) FindTorrentByHash(ctx context.Context, hash string) (*qbittorrent.Torrent, error) {
+	if hash == "" {
+		return nil, fmt.Errorf("hash cannot be empty")
+	}
+
+	// Get all torrents
+	allTorrents, err := ts.GetTorrents(ctx, &TorrentFilter{})
+	if err != nil {
+		return nil, fmt.Errorf("failed to get torrents: %w", err)
+	}
+
+	// Find by exact hash match (case-insensitive)
+	lowerHash := strings.ToLower(hash)
+	for _, torrent := range allTorrents {
+		if strings.ToLower(torrent.Hash) == lowerHash {
+			return &torrent, nil
+		}
+	}
+
+	return nil, fmt.Errorf("torrent with hash '%s' not found", hash)
 }
 
 // PauseTorrents pauses the specified torrents

@@ -136,8 +136,9 @@ Examples:
 	rootCmd.AddCommand(
 		cmd.NewTUICommand(ctx, services.Config, services.TorrentService, services.DiskService, services.SeedingService, services.QBClient),
 		cmd.NewListCommand(ctx, services.TorrentService),
-		cmd.NewAddCommand(ctx, services.TorrentService),
-		cmd.NewDeleteCommand(ctx, services.TorrentService),
+		cmd.NewDownloadingCommand(ctx, services.TorrentService),
+		cmd.NewAddCommand(ctx, services.TorrentService, services.SeedingService),
+		cmd.NewDeleteCommand(ctx, services.TorrentService, services.SeedingService),
 		cmd.NewDiskCommand(ctx, services.DiskService),
 		cmd.NewLogsCommand(ctx, services.Config),
 		cmd.NewSeedingCommand(ctx, services.SeedingService),

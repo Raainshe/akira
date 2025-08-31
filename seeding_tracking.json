@@ -1,1 +1,13 @@
-{}
+{
+  "1234567890abcdef1234567890abcdef12345678": {
+    "hash": "1234567890abcdef1234567890abcdef12345678",
+    "name": "Test Seeding Status",
+    "download_start_time": "2025-08-31T15:14:26.968934622+02:00",
+    "download_complete_time": "0001-01-01T00:00:00Z",
+    "download_duration": 0,
+    "seeding_stop_time": "0001-01-01T00:00:00Z",
+    "auto_stopped": false,
+    "created_at": "2025-08-31T15:14:26.968934622+02:00",
+    "updated_at": "2025-08-31T15:14:26.968934622+02:00"
+  }
+}

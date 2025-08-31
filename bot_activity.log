@@ -302,3 +302,6 @@
 {"component":"cache","level":"info","msg":"Cache cleared","time":"2025-08-31T14:09:06.808+02:00"}
 {"component":"main","level":"info","msg":"✅ Cache manager shutdown","time":"2025-08-31T14:09:06.808+02:00"}
 {"component":"main","level":"info","msg":"✅ Cleanup completed","time":"2025-08-31T14:09:06.808+02:00"}
+{"component":"core","error":"path does not exist: stat /home/ryan/Work/github.com/raainshe/akira/C:\\Users\\ryanb\\Downloads: no such file or directory","level":"error","msg":"Failed to get disk space","path":"/home/ryan/Work/github.com/raainshe/akira/C:\\Users\\ryanb\\Downloads","time":"2025-08-31T14:39:36.839+02:00"}
+{"component":"core","error":"path does not exist: stat /home/ryan/Work/github.com/raainshe/akira/C:\\Torrents: no such file or directory","level":"error","msg":"Failed to get disk space","path":"/home/ryan/Work/github.com/raainshe/akira/C:\\Torrents","time":"2025-08-31T14:39:36.842+02:00"}
+{"component":"seeding_manager","error":"failed to unmarshal tracking data: unexpected end of JSON input","level":"warning","msg":"Failed to load tracking data, starting fresh","time":"2025-08-31T15:13:49.623+02:00"}
