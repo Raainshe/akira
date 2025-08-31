@@ -1,13 +1,13 @@
 {
-  "1234567890abcdef1234567890abcdef12345678": {
-    "hash": "1234567890abcdef1234567890abcdef12345678",
-    "name": "Test Seeding Status",
-    "download_start_time": "2025-08-31T15:14:26.968934622+02:00",
-    "download_complete_time": "0001-01-01T00:00:00Z",
-    "download_duration": 0,
-    "seeding_stop_time": "0001-01-01T00:00:00Z",
+  "bc8674266ea8985af05bc1c9d62a1aef65026d8a": {
+    "hash": "bc8674266ea8985af05bc1c9d62a1aef65026d8a",
+    "name": "Electronics from Scratch by Sarful Hassan",
+    "download_start_time": "2025-08-31T22:58:36.564864657+02:00",
+    "download_complete_time": "2025-08-31T22:58:36.564905357+02:00",
+    "download_duration": 5000000000,
+    "seeding_stop_time": "2025-08-31T22:58:41.564905357+02:00",
     "auto_stopped": false,
-    "created_at": "2025-08-31T15:14:26.968934622+02:00",
-    "updated_at": "2025-08-31T15:14:26.968934622+02:00"
+    "created_at": "2025-08-31T22:58:36.564864657+02:00",
+    "updated_at": "2025-08-31T22:58:36.564905357+02:00"
   }
 }

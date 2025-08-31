@@ -113,8 +113,14 @@ func (ss *SeedingService) Stop() error {
 
 	ss.logger.Info("Stopping seeding management service")
 
-	// Stop background processing
-	close(ss.stopChan)
+	// Stop background processing - use select to avoid closing already closed channel
+	select {
+	case <-ss.stopChan:
+		// Channel already closed, do nothing
+	default:
+		close(ss.stopChan)
+	}
+
 	if ss.ticker != nil {
 		ss.ticker.Stop()
 	}
@@ -125,6 +131,10 @@ func (ss *SeedingService) Stop() error {
 	}
 
 	ss.isRunning = false
+
+	// Create a new stop channel for next start
+	ss.stopChan = make(chan struct{})
+
 	ss.logger.Info("Seeding management service stopped")
 
 	return nil
@@ -161,6 +171,43 @@ func (ss *SeedingService) StartTracking(ctx context.Context, hash, name string) 
 	go func() {
 		if err := ss.SaveTrackingData(); err != nil {
 			ss.logger.WithError(err).Error("Failed to save tracking data after starting tracking")
+		}
+	}()
+
+	return nil
+}
+
+// MarkTorrentCompleted marks a torrent as completed and calculates seeding duration
+func (ss *SeedingService) MarkTorrentCompleted(ctx context.Context, hash string, downloadDuration time.Duration) error {
+	ss.dataMutex.Lock()
+	defer ss.dataMutex.Unlock()
+
+	trackingData, exists := ss.trackingData[hash]
+	if !exists {
+		return fmt.Errorf("torrent %s is not being tracked", hash)
+	}
+
+	now := time.Now()
+	trackingData.DownloadCompleteTime = now
+	trackingData.DownloadDuration = downloadDuration
+
+	// Calculate seeding stop time
+	seedingDuration := time.Duration(float64(downloadDuration) * ss.config.Seeding.TimeMultiplier)
+	trackingData.SeedingStopTime = now.Add(seedingDuration)
+	trackingData.UpdatedAt = now
+
+	ss.logger.WithFields(map[string]interface{}{
+		"hash":              hash,
+		"name":              trackingData.Name,
+		"download_duration": downloadDuration,
+		"seeding_duration":  seedingDuration,
+		"seeding_stop_time": trackingData.SeedingStopTime,
+	}).Info("Torrent marked as completed, seeding time limit calculated")
+
+	// Save tracking data (call without holding lock to avoid deadlock)
+	go func() {
+		if err := ss.SaveTrackingData(); err != nil {
+			ss.logger.WithError(err).Error("Failed to save tracking data after marking completion")
 		}
 	}()
 
@@ -260,9 +307,9 @@ func (ss *SeedingService) CheckSeedingLimits(ctx context.Context) error {
 		if !trackingData.DownloadCompleteTime.IsZero() && now.After(trackingData.SeedingStopTime) {
 			// Time to stop seeding
 			if torrent.IsSeeding() {
-				err := ss.client.PauseTorrents(ctx, []string{hash})
+				err := ss.torrentService.StopTorrents(ctx, []string{hash})
 				if err != nil {
-					ss.logger.WithError(err).WithField("hash", hash).Error("Failed to pause torrent for seeding limit")
+					ss.logger.WithError(err).WithField("hash", hash).Error("Failed to stop torrent for seeding limit")
 					continue
 				}
 

@@ -8,6 +8,7 @@ import (
 	"syscall"
 
 	"github.com/bwmarrin/discordgo"
+	"github.com/raainshe/akira/internal/bot/commands"
 	"github.com/raainshe/akira/internal/config"
 	"github.com/raainshe/akira/internal/core"
 	"github.com/raainshe/akira/internal/logging"
@@ -95,21 +96,23 @@ func (b *Bot) handleInteractionCreate(s *discordgo.Session, i *discordgo.Interac
 	// Route to appropriate command handler
 	switch i.ApplicationCommandData().Name {
 	case "torrents":
-		b.handleTorrentsCommand(s, i)
+		commands.HandleTorrentsCommand(s, i, b.torrentService)
 	case "add":
-		b.handleAddCommand(s, i)
+		commands.HandleAddCommand(s, i, b.torrentService, b.seedingService, b.config)
 	case "delete":
-		b.handleDeleteCommand(s, i)
+		commands.HandleDeleteCommand(s, i, b.torrentService, b.seedingService)
+	case "progress":
+		commands.HandleProgressCommand(s, i, b.torrentService)
 	case "disk":
-		b.handleDiskCommand(s, i)
+		commands.HandleDiskCommand(s, i, b.diskService)
 	case "logs":
-		b.handleLogsCommand(s, i)
+		commands.HandleLogsCommand(s, i)
 	case "seeding-status":
-		b.handleSeedingStatusCommand(s, i)
+		commands.HandleSeedingStatusCommand(s, i, b.seedingService)
 	case "stop-seeding":
-		b.handleStopSeedingCommand(s, i)
+		commands.HandleStopSeedingCommand(s, i, b.seedingService)
 	case "help":
-		b.handleHelpCommand(s, i)
+		commands.HandleHelpCommand(s, i)
 	default:
 		b.handleUnknownCommand(s, i)
 	}
@@ -218,6 +221,24 @@ func (b *Bot) RegisterCommands() error {
 			Description: "Show seeding status and statistics",
 		},
 		{
+			Name:        "progress",
+			Description: "Show live progress for a specific torrent",
+			Options: []*discordgo.ApplicationCommandOption{
+				{
+					Type:        discordgo.ApplicationCommandOptionString,
+					Name:        "torrent",
+					Description: "Torrent name or hash",
+					Required:    true,
+				},
+				{
+					Type:        discordgo.ApplicationCommandOptionInteger,
+					Name:        "duration",
+					Description: "Duration to track progress in seconds (10-300, default: 60)",
+					Required:    false,
+				},
+			},
+		},
+		{
 			Name:        "stop-seeding",
 			Description: "Stop seeding for a specific torrent",
 			Options: []*discordgo.ApplicationCommandOption{
@@ -321,47 +342,6 @@ func (b *Bot) WaitForShutdown() {
 			"error": err.Error(),
 		})
 	}
-}
-
-// Command handlers (to be implemented)
-func (b *Bot) handleTorrentsCommand(s *discordgo.Session, i *discordgo.InteractionCreate) {
-	// TODO: Implement torrents command
-	b.respondWithError(s, i, "Torrents command not yet implemented")
-}
-
-func (b *Bot) handleAddCommand(s *discordgo.Session, i *discordgo.InteractionCreate) {
-	// TODO: Implement add command
-	b.respondWithError(s, i, "Add command not yet implemented")
-}
-
-func (b *Bot) handleDeleteCommand(s *discordgo.Session, i *discordgo.InteractionCreate) {
-	// TODO: Implement delete command
-	b.respondWithError(s, i, "Delete command not yet implemented")
-}
-
-func (b *Bot) handleDiskCommand(s *discordgo.Session, i *discordgo.InteractionCreate) {
-	// TODO: Implement disk command
-	b.respondWithError(s, i, "Disk command not yet implemented")
-}
-
-func (b *Bot) handleLogsCommand(s *discordgo.Session, i *discordgo.InteractionCreate) {
-	// TODO: Implement logs command
-	b.respondWithError(s, i, "Logs command not yet implemented")
-}
-
-func (b *Bot) handleSeedingStatusCommand(s *discordgo.Session, i *discordgo.InteractionCreate) {
-	// TODO: Implement seeding status command
-	b.respondWithError(s, i, "Seeding status command not yet implemented")
-}
-
-func (b *Bot) handleStopSeedingCommand(s *discordgo.Session, i *discordgo.InteractionCreate) {
-	// TODO: Implement stop seeding command
-	b.respondWithError(s, i, "Stop seeding command not yet implemented")
-}
-
-func (b *Bot) handleHelpCommand(s *discordgo.Session, i *discordgo.InteractionCreate) {
-	// TODO: Implement help command
-	b.respondWithError(s, i, "Help command not yet implemented")
 }
 
 func (b *Bot) handleUnknownCommand(s *discordgo.Session, i *discordgo.InteractionCreate) {

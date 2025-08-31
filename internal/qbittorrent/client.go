@@ -352,16 +352,46 @@ func (c *Client) AddMagnet(ctx context.Context, magnetURI string, options AddTor
 	}
 	defer resp.Body.Close()
 
+	// Read response body
+	respBody, err := io.ReadAll(resp.Body)
+	if err != nil {
+		return fmt.Errorf("failed to read response body: %w", err)
+	}
+
+	c.logger.WithFields(map[string]interface{}{
+		"status_code": resp.StatusCode,
+		"body_length": len(respBody),
+		"response":    string(respBody),
+	}).Debug("Add magnet response")
+
+	// Check for HTTP errors
 	if resp.StatusCode >= 400 {
-		body, _ := io.ReadAll(resp.Body)
 		c.logger.WithFields(map[string]interface{}{
 			"status_code": resp.StatusCode,
-			"response":    string(body),
+			"response":    string(respBody),
 		}).Error("Add magnet request failed")
 		return &APIError{
 			Code:    resp.StatusCode,
 			Message: resp.Status,
-			Details: string(body),
+			Details: string(respBody),
+		}
+	}
+
+	// Check for qBittorrent errors in response body (even with 200 status)
+	// qBittorrent returns error messages in the response body
+	if len(respBody) > 0 {
+		respText := strings.TrimSpace(string(respBody))
+		if respText != "" && respText != "Ok." {
+			// This is an error response from qBittorrent
+			c.logger.WithFields(map[string]interface{}{
+				"status_code": resp.StatusCode,
+				"response":    respText,
+			}).Error("qBittorrent returned error in response body")
+			return &APIError{
+				Code:    resp.StatusCode,
+				Message: "qBittorrent Error",
+				Details: respText,
+			}
 		}
 	}
 
@@ -416,6 +446,30 @@ func (c *Client) PauseTorrents(ctx context.Context, hashes []string) error {
 	}
 
 	c.logger.WithField("count", len(hashes)).Info("Torrents paused successfully")
+	return nil
+}
+
+// StopTorrents stops torrents in qBittorrent (completely stops them)
+func (c *Client) StopTorrents(ctx context.Context, hashes []string) error {
+	if err := c.ensureAuthenticated(ctx); err != nil {
+		return err
+	}
+
+	c.logger.WithFields(map[string]interface{}{
+		"hashes": hashes,
+		"count":  len(hashes),
+	}).Info("Stopping torrents")
+
+	data := url.Values{}
+	data.Set("hashes", strings.Join(hashes, "|"))
+
+	err := c.makeRequest(ctx, "POST", "/api/v2/torrents/stop", data, nil)
+	if err != nil {
+		c.logger.WithError(err).Error("Failed to stop torrents")
+		return fmt.Errorf("failed to stop torrents: %w", err)
+	}
+
+	c.logger.WithField("count", len(hashes)).Info("Torrents stopped successfully")
 	return nil
 }
 

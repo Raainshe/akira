@@ -517,10 +517,22 @@ func runAddCommand(ctx context.Context, torrentService *core.TorrentService, see
 	}
 
 	// Add the torrent
-	err = torrentService.AddMagnet(ctx, addRequest)
+	addedTorrent, err := torrentService.AddMagnet(ctx, addRequest)
 	if err != nil {
-		cli.PrintAddResult(false, magnetInfo, category, customPath, err)
-		return fmt.Errorf("failed to add torrent: %w", err)
+		// Check if it's a qBittorrent API error
+		if apiErr, ok := err.(*qbittorrent.APIError); ok {
+			cli.PrintAddResult(false, magnetInfo, category, customPath, fmt.Errorf("qBittorrent Error: %s", apiErr.Details))
+			return fmt.Errorf("qBittorrent error: %s", apiErr.Details)
+		} else {
+			cli.PrintAddResult(false, magnetInfo, category, customPath, err)
+			return fmt.Errorf("failed to add torrent: %w", err)
+		}
+	}
+
+	// Update magnet info with actual torrent data if available
+	if addedTorrent != nil {
+		magnetInfo.DisplayName = addedTorrent.Name
+		magnetInfo.Hash = addedTorrent.Hash
 	}
 
 	// Step 5: Start seeding tracking

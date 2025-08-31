@@ -86,16 +86,16 @@ func NewRestartCommand(ctx context.Context, cfg *config.Config, torrentService *
 	}
 }
 
-// displayAkiraBanner displays the AKIRA ASCII art banner
+// displayAkiraBanner displays the AKIRA ASCII art banner with proper alignment
 func displayAkiraBanner() {
 	fmt.Println(`
     ╔══════════════════════════════════════════════════════════════╗
     ║                                                              ║
-    ║     █████  ██  ██ ██ ██████  ██████  █████                 ║
-    ║    ██   ██ ██ ██  ██ ██   ██ ██   ██ ██   ██                ║
-    ║    ███████ █████   ██ ██████  ██████  ███████                ║
-    ║    ██   ██ ██ ██  ██ ██   ██ ██   ██ ██   ██                ║
-    ║    ██   ██ ██  ██ ██ ██   ██ ██   ██ ██   ██                ║
+    ║     █████  ██  ██ ██ ██  ██ ██████  █████                 ║
+    ║    ██   ██ ██ ██  ██ ██ ██ ██   ██ ██   ██                ║
+    ║    ███████ █████   ██ █████ ██████  ███████                ║
+    ║    ██   ██ ██ ██  ██ ██ ██ ██   ██ ██   ██                ║
+    ║    ██   ██ ██  ██ ██ ██  ██ ██   ██ ██   ██                ║
     ║                                                              ║
     ║           🌟 Torrent Management Discord Bot 🌟               ║
     ║                                                              ║
@@ -149,6 +149,18 @@ func runDaemon(ctx context.Context, cfg *config.Config, torrentService *core.Tor
 	// Start Discord bot
 	if err := discordBot.Start(); err != nil {
 		return fmt.Errorf("failed to start Discord bot: %w", err)
+	}
+
+	// Ensure seeding service is stopped before starting
+	if seedingService.IsRunning() {
+		logger.Info("Stopping existing seeding service")
+		if err := seedingService.Stop(); err != nil {
+			logger.Error("Error stopping existing seeding service", map[string]interface{}{
+				"error": err.Error(),
+			})
+		}
+		// Give it a moment to stop
+		time.Sleep(100 * time.Millisecond)
 	}
 
 	// Start seeding service in background

@@ -3,6 +3,7 @@ package core
 import (
 	"context"
 	"fmt"
+	"net/url"
 	"regexp"
 	"sort"
 	"strings"
@@ -186,9 +187,9 @@ func (ts *TorrentService) SearchTorrents(ctx context.Context, pattern string) ([
 }
 
 // AddMagnet adds a magnet link with business logic and validation
-func (ts *TorrentService) AddMagnet(ctx context.Context, request *AddTorrentRequest) error {
+func (ts *TorrentService) AddMagnet(ctx context.Context, request *AddTorrentRequest) (*qbittorrent.Torrent, error) {
 	if request == nil {
-		return fmt.Errorf("add torrent request cannot be nil")
+		return nil, fmt.Errorf("add torrent request cannot be nil")
 	}
 
 	ts.logger.WithFields(map[string]interface{}{
@@ -199,13 +200,13 @@ func (ts *TorrentService) AddMagnet(ctx context.Context, request *AddTorrentRequ
 	// Validate magnet URI
 	if err := ts.validateMagnetURI(request.MagnetURI); err != nil {
 		ts.logger.WithError(err).Error("Invalid magnet URI")
-		return fmt.Errorf("invalid magnet URI: %w", err)
+		return nil, fmt.Errorf("invalid magnet URI: %w", err)
 	}
 
 	// Validate and normalize category
 	if request.Category != "" {
 		if !ts.isValidCategory(request.Category) {
-			return fmt.Errorf("invalid category: %s (valid: %v)", request.Category, ts.config.GetValidCategories())
+			return nil, fmt.Errorf("invalid category: %s (valid: %v)", request.Category, ts.config.GetValidCategories())
 		}
 	} else {
 		request.Category = "default"
@@ -227,15 +228,69 @@ func (ts *TorrentService) AddMagnet(ctx context.Context, request *AddTorrentRequ
 	err := ts.client.AddMagnet(ctx, request.MagnetURI, qbitOptions)
 	if err != nil {
 		ts.logger.WithError(err).Error("Failed to add magnet link")
-		return fmt.Errorf("failed to add magnet link: %w", err)
+		return nil, fmt.Errorf("failed to add magnet link: %w", err)
+	}
+
+	// Extract hash from magnet URI to find the added torrent
+	hash, err := ts.extractHashFromMagnet(request.MagnetURI)
+	if err != nil {
+		ts.logger.WithError(err).Warn("Failed to extract hash from magnet URI")
+		// Return success but without torrent info
+		ts.logger.WithFields(map[string]interface{}{
+			"category":  request.Category,
+			"save_path": savePath,
+		}).Info("Magnet link added successfully")
+		return nil, nil
+	}
+
+	// Wait a moment for qBittorrent to process the torrent
+	time.Sleep(2 * time.Second)
+
+	// Try to find the added torrent
+	torrent, err := ts.FindTorrentByHash(ctx, hash)
+	if err != nil {
+		ts.logger.WithError(err).Warn("Failed to find added torrent")
+		// Return success but without torrent info
+		ts.logger.WithFields(map[string]interface{}{
+			"category":  request.Category,
+			"save_path": savePath,
+		}).Info("Magnet link added successfully")
+		return nil, nil
 	}
 
 	ts.logger.WithFields(map[string]interface{}{
 		"category":  request.Category,
 		"save_path": savePath,
+		"name":      torrent.Name,
+		"hash":      torrent.Hash,
 	}).Info("Magnet link added successfully")
 
-	return nil
+	return torrent, nil
+}
+
+// extractHashFromMagnet extracts the info hash from a magnet URI
+func (ts *TorrentService) extractHashFromMagnet(magnetURI string) (string, error) {
+	parsedURL, err := url.Parse(magnetURI)
+	if err != nil {
+		return "", fmt.Errorf("failed to parse magnet URI: %w", err)
+	}
+
+	query := parsedURL.Query()
+	if !query.Has("xt") {
+		return "", fmt.Errorf("invalid magnet URI: missing 'xt' parameter")
+	}
+
+	xt := query.Get("xt")
+	if !strings.HasPrefix(xt, "urn:btih:") {
+		return "", fmt.Errorf("invalid magnet URI: 'xt' parameter must start with 'urn:btih:'")
+	}
+
+	hash := strings.TrimPrefix(xt, "urn:btih:")
+	if len(hash) != 32 && len(hash) != 40 {
+		return "", fmt.Errorf("invalid magnet URI: info hash must be 32 or 40 characters")
+	}
+
+	return hash, nil
 }
 
 // DeleteTorrents deletes torrents with category-based filtering
@@ -348,6 +403,24 @@ func (ts *TorrentService) PauseTorrents(ctx context.Context, hashes []string) er
 	}
 
 	ts.logger.WithField("count", len(hashes)).Info("Torrents paused successfully")
+	return nil
+}
+
+// StopTorrents stops the specified torrents (completely stops them)
+func (ts *TorrentService) StopTorrents(ctx context.Context, hashes []string) error {
+	if len(hashes) == 0 {
+		return fmt.Errorf("no torrent hashes provided")
+	}
+
+	ts.logger.WithField("count", len(hashes)).Info("Stopping torrents")
+
+	err := ts.client.StopTorrents(ctx, hashes)
+	if err != nil {
+		ts.logger.WithError(err).Error("Failed to stop torrents")
+		return fmt.Errorf("failed to stop torrents: %w", err)
+	}
+
+	ts.logger.WithField("count", len(hashes)).Info("Torrents stopped successfully")
 	return nil
 }
 
