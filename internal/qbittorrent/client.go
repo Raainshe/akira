@@ -529,11 +529,3 @@ func (c *Client) GetDiskSpace(ctx context.Context, path string) (*DiskSpace, err
 	// For now, we'll return an error indicating this needs platform-specific implementation
 	return nil, fmt.Errorf("disk space checking not implemented - requires platform-specific code")
 }
-
-// Helper function to get minimum of two integers
-func min(a, b int) int {
-	if a < b {
-		return a
-	}
-	return b
-}

@@ -12,10 +12,10 @@ func HandleHelpCommand(s *discordgo.Session, i *discordgo.InteractionCreate) {
 		"**📋 Torrent Management:**\n" +
 		"• `/torrents [filter] [page]` - List torrents with filtering and pagination\n" +
 		"• `/add <magnet> [category]` - Add a magnet link with **automatic live progress tracking**\n" +
-		"• `/delete <query> [delete_files]` - Delete torrents by name or hash\n" +
+		"• `/delete` - **Interactive torrent deletion** - Select from list, confirm deletion\n" +
 		"• `/progress <torrent> [duration]` - Show live progress for a specific torrent\n\n" +
 		"**💾 System Information:**\n" +
-		"• `/disk` - Show disk usage statistics\n" +
+		"• `/disk` - Show disk usage with **interactive pie chart visualization**\n" +
 		"• `/logs [level] [lines]` - Show recent application logs\n" +
 		"• `/seeding-status` - Show seeding service status and statistics\n\n" +
 		"**🌱 Seeding Management:**\n" +
@@ -23,7 +23,7 @@ func HandleHelpCommand(s *discordgo.Session, i *discordgo.InteractionCreate) {
 		"**📖 Usage Examples:**\n" +
 		"• `/torrents filter:downloading` - Show only downloading torrents\n" +
 		"• `/add magnet:?xt=urn:btih:... category:movies` - Add movie torrent with live tracking\n" +
-		"• `/delete \"My Movie\" delete_files:true` - Delete torrent and files\n" +
+		"• `/delete` - Opens interactive selection menu for torrent deletion\n" +
 		"• `/progress \"My Movie\" duration:120` - Track progress for 2 minutes\n" +
 		"• `/logs level:error lines:20` - Show last 20 error logs\n\n" +
 		"**🔧 Filter Options:**\n" +
@@ -34,12 +34,14 @@ func HandleHelpCommand(s *discordgo.Session, i *discordgo.InteractionCreate) {
 		"• Use partial names for torrent queries\n" +
 		"• Hash queries are case-insensitive\n" +
 		"• **Add command automatically starts live progress tracking**\n" +
+		"• **Delete command now uses interactive selection** - no more manual typing!\n" +
+		"• **Disk command shows beautiful pie chart** with used/available space visualization\n" +
 		"• **Automatic seeding management** starts when torrents complete\n" +
 		"• **Seeding duration** = Download time × SEEDING_TIME_MULTIPLIER\n" +
 		"• Progress tracking updates every 5 seconds\n" +
 		"• Live tracking continues until completion or 30 minutes\n" +
 		"• Logs show newest entries first\n" +
-		"• Disk usage includes health indicators"
+		"• **Multi-torrent deletion** supported with confirmation"
 
 	embed := createInfoEmbed("❓ Help & Commands", content)
 
