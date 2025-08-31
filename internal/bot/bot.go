@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"os"
 	"os/signal"
+	"strings"
 	"syscall"
 
 	"github.com/bwmarrin/discordgo"
@@ -88,11 +89,22 @@ func (b *Bot) handleReady(s *discordgo.Session, event *discordgo.Ready) {
 
 // handleInteractionCreate handles slash command interactions
 func (b *Bot) handleInteractionCreate(s *discordgo.Session, i *discordgo.InteractionCreate) {
-	// Only handle slash commands
-	if i.Type != discordgo.InteractionApplicationCommand {
+	// Handle different interaction types
+	switch i.Type {
+	case discordgo.InteractionApplicationCommand:
+		// Handle slash commands
+		b.handleSlashCommand(s, i)
+	case discordgo.InteractionMessageComponent:
+		// Handle button clicks and select menu selections
+		b.handleComponentInteraction(s, i)
+	default:
+		// Ignore other interaction types
 		return
 	}
+}
 
+// handleSlashCommand handles slash command interactions
+func (b *Bot) handleSlashCommand(s *discordgo.Session, i *discordgo.InteractionCreate) {
 	// Route to appropriate command handler
 	switch i.ApplicationCommandData().Name {
 	case "torrents":
@@ -115,6 +127,29 @@ func (b *Bot) handleInteractionCreate(s *discordgo.Session, i *discordgo.Interac
 		commands.HandleHelpCommand(s, i)
 	default:
 		b.handleUnknownCommand(s, i)
+	}
+}
+
+// handleComponentInteraction handles button clicks and select menu selections
+func (b *Bot) handleComponentInteraction(s *discordgo.Session, i *discordgo.InteractionCreate) {
+	data := i.MessageComponentData()
+
+	switch data.CustomID {
+	case "delete_torrent_select":
+		commands.HandleDeleteTorrentSelect(s, i, b.torrentService, b.seedingService)
+	case "delete_confirm":
+		commands.HandleDeleteConfirm(s, i, b.torrentService, b.seedingService)
+	case "delete_cancel":
+		commands.HandleDeleteCancel(s, i, b.torrentService, b.seedingService)
+	default:
+		// Handle other component interactions if needed
+		if strings.HasPrefix(data.CustomID, "delete_confirm|") {
+			commands.HandleDeleteConfirm(s, i, b.torrentService, b.seedingService)
+		} else {
+			b.logger.Warn("Unknown component interaction", map[string]interface{}{
+				"custom_id": data.CustomID,
+			})
+		}
 	}
 }
 
@@ -171,21 +206,7 @@ func (b *Bot) RegisterCommands() error {
 		},
 		{
 			Name:        "delete",
-			Description: "Delete torrents by name or hash",
-			Options: []*discordgo.ApplicationCommandOption{
-				{
-					Type:        discordgo.ApplicationCommandOptionString,
-					Name:        "query",
-					Description: "Torrent name or hash to delete",
-					Required:    true,
-				},
-				{
-					Type:        discordgo.ApplicationCommandOptionBoolean,
-					Name:        "delete_files",
-					Description: "Also delete downloaded files",
-					Required:    false,
-				},
-			},
+			Description: "Delete torrents - select from available torrents",
 		},
 		{
 			Name:        "disk",
