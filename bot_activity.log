@@ -78,3 +78,15 @@
 {"component":"cache","deletes":0,"evictions":0,"hit_ratio":"0.00%","hits":0,"item_count":0,"level":"info","misses":0,"msg":"Cache statistics","sets":0,"time":"2025-08-31T13:00:28.728+02:00","uptime":"81.636076ms"}
 {"component":"cache","level":"info","msg":"Cache statistics reset","time":"2025-08-31T13:00:28.728+02:00"}
 {"component":"cache","level":"info","msg":"Cache cleared","time":"2025-08-31T13:00:28.728+02:00"}
+{"component":"main","level":"info","msg":"Logger initialized successfully","time":"2025-08-31T13:11:29.475+02:00"}
+{"auth_session_ttl":3600000000000,"cleanup_interval":600000000000,"component":"cache","disk_space_ttl":300000000000,"level":"info","max_items":1000,"msg":"Cache manager initialized successfully","time":"2025-08-31T13:11:29.476+02:00"}
+{"component":"core","free":"372.5 GB","level":"info","msg":"Disk space information retrieved","path":"/home/ryan/Work/github.com/raainshe/akira/C:\\Torrents","time":"2025-08-31T13:11:29.476+02:00","total":"931.3 GB","used":"558.8 GB","used_percent":"60.0%"}
+{"component":"core","free":"372.5 GB","level":"info","msg":"Disk space information retrieved","path":"/home/ryan/Work/github.com/raainshe/akira/C:\\Users\\ryanb\\Downloads","time":"2025-08-31T13:11:29.476+02:00","total":"931.3 GB","used":"558.8 GB","used_percent":"60.0%"}
+{"component":"core","critical_paths":0,"level":"info","msg":"Disk space summary generated","paths_checked":2,"time":"2025-08-31T13:11:29.476+02:00","total_free":"745.1 GB","total_space":"1.8 TB","warning_paths":0,"worst_health":"good"}
+{"component":"core","health_status":{"C:\\Torrents":"good","C:\\Users\\ryanb\\Downloads":"good"},"level":"info","msg":"Disk health check completed","time":"2025-08-31T13:11:29.476+02:00"}
+{"component":"core","error":"path cannot be empty","level":"error","msg":"Failed to normalize path","path":"","time":"2025-08-31T13:11:29.477+02:00"}
+{"component":"core","free":"372.5 GB","level":"info","msg":"Disk space information retrieved","path":"/this/path/does/not/exist","time":"2025-08-31T13:11:29.477+02:00","total":"931.3 GB","used":"558.8 GB","used_percent":"60.0%"}
+{"component":"cache","level":"info","msg":"Shutting down cache manager","time":"2025-08-31T13:11:29.477+02:00"}
+{"component":"cache","deletes":0,"evictions":0,"hit_ratio":"70.00%","hits":7,"item_count":3,"level":"info","misses":3,"msg":"Cache statistics","sets":3,"time":"2025-08-31T13:11:29.477+02:00","uptime":"649.386µs"}
+{"component":"cache","level":"info","msg":"Cache statistics reset","time":"2025-08-31T13:11:29.477+02:00"}
+{"component":"cache","level":"info","msg":"Cache cleared","time":"2025-08-31T13:11:29.477+02:00"}
