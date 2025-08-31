@@ -90,3 +90,34 @@
 {"component":"cache","deletes":0,"evictions":0,"hit_ratio":"70.00%","hits":7,"item_count":3,"level":"info","misses":3,"msg":"Cache statistics","sets":3,"time":"2025-08-31T13:11:29.477+02:00","uptime":"649.386µs"}
 {"component":"cache","level":"info","msg":"Cache statistics reset","time":"2025-08-31T13:11:29.477+02:00"}
 {"component":"cache","level":"info","msg":"Cache cleared","time":"2025-08-31T13:11:29.477+02:00"}
+{"component":"main","level":"info","msg":"Logger initialized successfully","time":"2025-08-31T13:27:11.143+02:00"}
+{"auth_session_ttl":3600000000000,"cleanup_interval":600000000000,"component":"cache","disk_space_ttl":300000000000,"level":"info","max_items":1000,"msg":"Cache manager initialized successfully","time":"2025-08-31T13:27:11.143+02:00"}
+{"base_url":"http://172.31.64.1:8080","component":"qbittorrent","level":"info","msg":"qBittorrent client created","time":"2025-08-31T13:27:11.143+02:00","timeout":30000000000,"username":"admin"}
+{"component":"seeding_manager","hash":"1234567890abcdef1234567890abcdef12345678","level":"info","msg":"Started tracking torrent for seeding management","name":"Test Torrent 1","time":"2025-08-31T13:27:11.144+02:00"}
+{"component":"main","level":"info","msg":"Logger initialized successfully","time":"2025-08-31T13:36:21.269+02:00"}
+{"auth_session_ttl":3600000000000,"cleanup_interval":600000000000,"component":"cache","disk_space_ttl":300000000000,"level":"info","max_items":1000,"msg":"Cache manager initialized successfully","time":"2025-08-31T13:36:21.270+02:00"}
+{"base_url":"http://172.31.64.1:8080","component":"qbittorrent","level":"info","msg":"qBittorrent client created","time":"2025-08-31T13:36:21.270+02:00","timeout":30000000000,"username":"admin"}
+{"component":"seeding_manager","hash":"1234567890abcdef1234567890abcdef12345678","level":"info","msg":"Started tracking torrent for seeding management","name":"Test Torrent 1","time":"2025-08-31T13:36:21.270+02:00"}
+{"component":"main","level":"info","msg":"Logger initialized successfully","time":"2025-08-31T13:39:14.772+02:00"}
+{"auth_session_ttl":3600000000000,"cleanup_interval":600000000000,"component":"cache","disk_space_ttl":300000000000,"level":"info","max_items":1000,"msg":"Cache manager initialized successfully","time":"2025-08-31T13:39:14.772+02:00"}
+{"base_url":"http://172.31.64.1:8080","component":"qbittorrent","level":"info","msg":"qBittorrent client created","time":"2025-08-31T13:39:14.773+02:00","timeout":30000000000,"username":"admin"}
+{"component":"seeding_manager","hash":"1234567890abcdef1234567890abcdef12345678","level":"info","msg":"Started tracking torrent for seeding management","name":"Test Torrent 1","time":"2025-08-31T13:39:14.773+02:00"}
+{"component":"main","level":"info","msg":"Logger initialized successfully","time":"2025-08-31T13:41:06.106+02:00"}
+{"auth_session_ttl":3600000000000,"cleanup_interval":600000000000,"component":"cache","disk_space_ttl":300000000000,"level":"info","max_items":1000,"msg":"Cache manager initialized successfully","time":"2025-08-31T13:41:06.107+02:00"}
+{"base_url":"http://172.31.64.1:8080","component":"qbittorrent","level":"info","msg":"qBittorrent client created","time":"2025-08-31T13:41:06.107+02:00","timeout":30000000000,"username":"admin"}
+{"component":"seeding_manager","hash":"1234567890abcdef1234567890abcdef12345678","level":"info","msg":"Started tracking torrent for seeding management","name":"Test Torrent 1","time":"2025-08-31T13:41:06.107+02:00"}
+{"component":"seeding_manager","hash":"abcdef1234567890abcdef1234567890abcdef12","level":"info","msg":"Started tracking torrent for seeding management","name":"Test Torrent 2","time":"2025-08-31T13:41:06.107+02:00"}
+{"component":"seeding_manager","hash":"567890abcdef1234567890abcdef1234567890ab","level":"info","msg":"Started tracking torrent for seeding management","name":"Test Movie","time":"2025-08-31T13:41:06.107+02:00"}
+{"component":"seeding_manager","hash":"1234567890abcdef1234567890abcdef12345678","level":"info","msg":"Stopped tracking torrent","name":"Test Torrent 1","time":"2025-08-31T13:41:06.108+02:00"}
+{"component":"seeding_manager","file":"test_seeding_tracking.json","level":"info","msg":"Tracking data loaded from disk","time":"2025-08-31T13:41:06.109+02:00","tracked_torrents":2}
+{"component":"seeding_manager","level":"info","msg":"Starting seeding management service","time":"2025-08-31T13:41:06.109+02:00"}
+{"component":"seeding_manager","file":"test_seeding_tracking.json","level":"info","msg":"Tracking data loaded from disk","time":"2025-08-31T13:41:06.109+02:00","tracked_torrents":2}
+{"check_interval":2000000000,"component":"seeding_manager","level":"info","msg":"Seeding management service started","time":"2025-08-31T13:41:06.109+02:00","time_multiplier":2,"tracked_torrents":2,"tracking_file":"test_seeding_tracking.json"}
+{"component":"seeding_manager","level":"info","msg":"Background seeding processor started","time":"2025-08-31T13:41:06.109+02:00"}
+{"component":"seeding_manager","level":"info","msg":"Stopping seeding management service","time":"2025-08-31T13:41:07.110+02:00"}
+{"component":"seeding_manager","level":"info","msg":"Background seeding processor stopped","time":"2025-08-31T13:41:07.110+02:00"}
+{"component":"seeding_manager","level":"info","msg":"Seeding management service stopped","time":"2025-08-31T13:41:07.110+02:00"}
+{"component":"cache","level":"info","msg":"Shutting down cache manager","time":"2025-08-31T13:41:07.111+02:00"}
+{"component":"cache","deletes":0,"evictions":0,"hit_ratio":"0.00%","hits":0,"item_count":0,"level":"info","misses":0,"msg":"Cache statistics","sets":0,"time":"2025-08-31T13:41:07.111+02:00","uptime":"1.004277978s"}
+{"component":"cache","level":"info","msg":"Cache statistics reset","time":"2025-08-31T13:41:07.111+02:00"}
+{"component":"cache","level":"info","msg":"Cache cleared","time":"2025-08-31T13:41:07.111+02:00"}
