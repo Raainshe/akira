@@ -17,3 +17,11 @@
 {"component":"main","level":"debug","msg":"This debug message should now be visible","time":"2025-08-31T12:26:02.633+02:00"}
 {"component":"main","level":"info","msg":"Log level changed to: info","time":"2025-08-31T12:26:02.633+02:00"}
 {"component":"main","level":"info","msg":"Shutting down logging system","time":"2025-08-31T12:26:02.734+02:00"}
+{"component":"main","level":"info","msg":"Logger initialized successfully","time":"2025-08-31T12:39:02.784+02:00"}
+{"auth_session_ttl":3600000000000,"cleanup_interval":600000000000,"component":"cache","disk_space_ttl":300000000000,"level":"info","max_items":1000,"msg":"Cache manager initialized successfully","time":"2025-08-31T12:39:02.784+02:00"}
+{"component":"cache","deletes":0,"evictions":0,"hit_ratio":"80.00%","hits":4,"item_count":3,"level":"info","misses":1,"msg":"Cache statistics","sets":3,"time":"2025-08-31T12:39:02.784+02:00","uptime":"99.266µs"}
+{"component":"cache","deletes":1,"evictions":1,"hit_ratio":"71.43%","hits":5,"item_count":3,"level":"info","misses":2,"msg":"Cache statistics","sets":4,"time":"2025-08-31T12:39:04.786+02:00","uptime":"2.001725415s"}
+{"component":"cache","level":"info","msg":"Shutting down cache manager","time":"2025-08-31T12:39:04.786+02:00"}
+{"component":"cache","deletes":1,"evictions":1,"hit_ratio":"71.43%","hits":5,"item_count":3,"level":"info","misses":2,"msg":"Cache statistics","sets":4,"time":"2025-08-31T12:39:04.786+02:00","uptime":"2.001979256s"}
+{"component":"cache","level":"info","msg":"Cache statistics reset","time":"2025-08-31T12:39:04.786+02:00"}
+{"component":"cache","level":"info","msg":"Cache cleared","time":"2025-08-31T12:39:04.786+02:00"}

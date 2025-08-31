@@ -75,11 +75,7 @@ Include all configuration variables:
 ## Phase 2: Core Systems Implementation
 
 ### Step 5: Configuration System (`internal/config/`)
-- Create `Config` struct with nested structs for each component
-- Implement `.env` file loading using `godotenv`
-- Add default values for optional settings
-- Create helper functions for parsing durations, floats, etc.
-- Validate required configuration on startup
+
 
 ### Step 6: Logging System (`internal/logging/`)
 - Implement structured logging with `logrus`
