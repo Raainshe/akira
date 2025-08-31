@@ -1,6 +1,7 @@
 package commands
 
 import (
+	"bytes"
 	"context"
 	"fmt"
 	"strings"
@@ -20,18 +21,40 @@ func HandleDiskCommand(s *discordgo.Session, i *discordgo.InteractionCreate, dis
 		return
 	}
 
+	// Generate pie chart
+	chartBytes, err := generateMultiDiskPieChart(diskSummary)
+	if err != nil {
+		// If chart generation fails, fall back to text-only response
+		fmt.Printf("Warning: Failed to generate pie chart: %v\n", err)
+		chartBytes = nil
+	}
+
 	// Format response
 	content := formatDiskSummary(diskSummary)
 
 	// Create embed
 	embed := createInfoEmbed("💾 Disk Usage", content)
 
+	// Prepare response data
+	responseData := &discordgo.InteractionResponseData{
+		Embeds: []*discordgo.MessageEmbed{embed},
+	}
+
+	// Add chart image if available
+	if chartBytes != nil {
+		responseData.Files = []*discordgo.File{
+			{
+				Name:        "disk_usage_chart.png",
+				ContentType: "image/png",
+				Reader:      bytes.NewReader(chartBytes),
+			},
+		}
+	}
+
 	// Send response
 	err = s.InteractionRespond(i.Interaction, &discordgo.InteractionResponse{
 		Type: discordgo.InteractionResponseChannelMessageWithSource,
-		Data: &discordgo.InteractionResponseData{
-			Embeds: []*discordgo.MessageEmbed{embed},
-		},
+		Data: responseData,
 	})
 
 	if err != nil {
