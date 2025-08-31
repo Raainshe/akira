@@ -151,56 +151,174 @@ Implement automatic seeding management:
 - Persistent storage of tracking data
 - Automatic torrent pausing when seeding time reached
 
-## Phase 5: CLI Implementation
+## Phase 5: Hybrid CLI Implementation (Cobra + Bubbletea)
+
+### Architecture Overview
+**Hybrid Approach**: Combine Cobra (traditional CLI) with Bubbletea (interactive TUI)
+- **Cobra Commands**: Fast, scriptable operations for automation and Discord bot
+- **Bubbletea TUI**: Beautiful, interactive dashboard for monitoring and management
+- **Best of Both**: Users get choice between quick commands and rich UI
+
+### Dependencies
+```bash
+# CLI Framework
+go get github.com/spf13/cobra
+go get github.com/spf13/viper
+
+# TUI Framework  
+go get github.com/charmbracelet/bubbletea
+go get github.com/charmbracelet/lipgloss
+go get github.com/charmbracelet/bubbles
+
+# Pretty Output for CLI commands
+go get github.com/olekukonko/tablewriter
+go get github.com/fatih/color
+```
+
+### Command Structure
+```
+akira                    # Launch interactive TUI (default)
+akira tui               # Explicit TUI mode
+akira add <magnet>      # Quick Cobra command
+akira list              # Quick Cobra command  
+akira delete            # Quick Cobra command
+akira disk              # Quick Cobra command
+akira logs              # Quick Cobra command
+akira seeding status    # Quick Cobra command
+akira version           # Version information
+```
 
 ### Step 14: Main Entry Point (`main.go`)
-- Initialize Cobra CLI application
-- Set up global flags (config file, log level, etc.)
-- Add all subcommands
-- Handle graceful shutdown signals
-- Add version information
+- Initialize Cobra CLI application with hybrid structure
+- Set up global flags (config file, log level, verbose)
+- Configure default command to launch TUI
+- Add all quick command subcommands
+- Handle graceful shutdown signals (SIGINT/SIGTERM)
+- Initialize all core services (config, logging, cache, qBittorrent, torrent, disk, seeding)
+- Add version information and build metadata
 
-### Step 15: CLI Commands (`cmd/*.go`)
-Implement each command:
+### Step 15A: Quick CLI Commands (`cmd/*.go`)
+Traditional Cobra commands for automation and scripting:
 
 **List Command (`cmd/list.go`)**:
-- `--seeding` flag to show only seeding torrents
-- `--category` flag to filter by category
-- Pretty table output with progress bars
-- Color coding for different states
+- `--category` flag to filter by category (series, movies, anime)
+- `--state` flag to filter by state (downloading, seeding, paused)
+- `--seeding-only` flag shortcut
+- `--json` flag for machine-readable output
+- Pretty table output with progress bars and colors
+- Color coding: Green (seeding), Blue (downloading), Red (error), Yellow (paused)
 
 **Add Command (`cmd/add.go`)**:
-- Validate magnet link format
-- `--category` flag with validation
-- `--path` flag to override save path
-- Progress indication for add operation
+- Validate magnet link format before submission
+- `--category` flag with validation (series/movies/anime)
+- `--path` flag to override default save path
+- Progress indication during add operation
+- Success/error feedback with torrent details
 
 **Delete Command (`cmd/delete.go`)**:
-- Interactive selection of torrents to delete
-- `--category` filter
-- `--delete-files` flag
-- Confirmation prompts
+- `--hash` flag for specific torrent deletion
+- `--category` filter to narrow selection
+- `--delete-files` flag to remove downloaded files
+- `--interactive` flag for selection menu
+- Confirmation prompts with torrent details
 
-**Disk Space Command (`cmd/diskspace.go`)**:
-- `--path` flag to specify custom path
+**Disk Space Command (`cmd/disk.go`)**:
+- Show all configured qBittorrent paths by default
+- `--path` flag to check specific custom path
 - Formatted output (GB, TB, percentages)
-- Optional JSON output format
+- `--json` flag for machine-readable output
+- Color coding for usage levels (green < 80%, yellow < 90%, red >= 90%)
 
 **Logs Command (`cmd/logs.go`)**:
-- `--tail` flag to limit number of entries
+- `--tail N` flag to limit number of entries (default: 50)
 - `--follow` flag for real-time log streaming
-- `--level` filter by log level
+- `--level` filter by log level (debug, info, warn, error)
+- `--component` filter by component (qbittorrent, torrent_service, etc.)
+- Colored output by log level
 
-**Seeding Commands**:
-- Seed status overview
-- Stop all seeds with confirmation
-- Stop specific seeds with interactive selection
+**Seeding Commands (`cmd/seeding.go`)**:
+- `akira seeding status` - Overview of all tracked torrents
+- `akira seeding stop-all` - Stop all seeding with confirmation
+- `akira seeding stop --interactive` - Interactive selection
+- `akira seeding stats` - Statistics and analytics
+- Time remaining calculations and progress indicators
 
-### Step 16: CLI Testing
-- Test each command thoroughly
-- Verify error handling and user feedback
-- Test edge cases (empty results, network errors)
-- Ensure proper exit codes
+### Step 15B: Interactive TUI (`internal/tui/*.go`)
+Beautiful Bubbletea interface for rich user experience:
+
+**TUI Framework (`internal/tui/app.go`)**:
+- Main application model with navigation
+- Global key bindings and help system
+- Real-time data refresh from core services
+- Graceful shutdown handling
+- Status bar with connection status and updates
+
+**Dashboard View (`internal/tui/dashboard.go`)**:
+```
+┌─ Akira Torrent Manager ─────────────────────────────────┐
+│                                                         │
+│  📥 Downloading (3)     🌱 Seeding (12)     ⏸️  Paused (1) │
+│  💾 Disk: 2.1TB / 4.0TB (52%)    🔄 Cache: 156 items    │
+│                                                         │
+│  Recent Activity:                                       │
+│  • Movie.mkv completed (2m ago)                         │
+│  • Series.S01E05 started seeding (5m ago)               │
+│                                                         │
+│  [t] Torrents  [a] Add  [d] Disk  [s] Seeding  [q] Quit │
+└─────────────────────────────────────────────────────────┘
+```
+
+**Torrent List View (`internal/tui/torrents.go`)**:
+- Scrollable list with real-time progress bars
+- Filter by category, state, search term
+- Sort by name, progress, speed, ratio
+- Individual torrent actions (pause, resume, delete)
+- Detailed info panel for selected torrent
+- Vim-style navigation (j/k, /, etc.)
+
+**Add Magnet Form (`internal/tui/add.go`)**:
+- Text input with magnet link validation
+- Category selection dropdown
+- Path override option
+- Real-time validation feedback
+- Progress indication during submission
+
+**Seeding Management (`internal/tui/seeding.go`)**:
+- List of all tracked torrents with time remaining
+- Progress bars for seeding time vs. target
+- Bulk operations (stop multiple, change multiplier)
+- Detailed statistics and analytics
+- Interactive stop confirmations
+
+**Disk Usage View (`internal/tui/disk.go`)**:
+- Visual disk usage bars for all paths
+- Real-time updates every 30 seconds
+- Health indicators and warnings
+- Path-specific details and history
+
+**Logs Viewer (`internal/tui/logs.go`)**:
+- Scrollable log viewer with syntax highlighting
+- Filter by level, component, time range
+- Search functionality
+- Auto-follow mode for real-time updates
+- Export logs functionality
+
+### Step 16: Comprehensive Testing
+- **CLI Commands**: Test all flags, edge cases, error handling
+- **TUI Interface**: Test navigation, real-time updates, responsiveness
+- **Integration**: Verify both modes work with core services
+- **Performance**: Test with large torrent lists, rapid updates
+- **Error Handling**: Network failures, invalid input, edge cases
+- **User Experience**: Intuitive navigation, clear feedback, proper exit codes
+
+### Key Benefits of Hybrid Approach
+1. **🚀 Automation Ready**: Cobra commands perfect for scripts and Discord bot
+2. **🎨 Beautiful Monitoring**: Rich TUI for interactive management
+3. **👥 User Choice**: Power users get both interfaces
+4. **📊 Real-time Updates**: TUI shows live progress and status
+5. **🔧 Scriptable**: CLI commands integrate with CI/CD and automation
+6. **🎯 Familiar**: Both interfaces follow established patterns (kubectl, htop)
+7. **🛡️ Robust**: Comprehensive error handling and graceful degradation
 
 ## Phase 6: Discord Bot Implementation
 

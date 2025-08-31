@@ -109,8 +109,10 @@ func Initialize(cfg *config.LoggingConfig) (*Logger, error) {
 	// Set global instance
 	loggerInstance = appLogger
 
-	// Log initialization
-	appLogger.WithField("component", ComponentMain).Info("Logger initialized successfully")
+	// Log initialization only if level is info or below (to reduce CLI verbosity)
+	if level <= logrus.InfoLevel {
+		appLogger.WithField("component", ComponentMain).Info("Logger initialized successfully")
+	}
 
 	return appLogger, nil
 }

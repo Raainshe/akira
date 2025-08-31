@@ -121,3 +121,184 @@
 {"component":"cache","deletes":0,"evictions":0,"hit_ratio":"0.00%","hits":0,"item_count":0,"level":"info","misses":0,"msg":"Cache statistics","sets":0,"time":"2025-08-31T13:41:07.111+02:00","uptime":"1.004277978s"}
 {"component":"cache","level":"info","msg":"Cache statistics reset","time":"2025-08-31T13:41:07.111+02:00"}
 {"component":"cache","level":"info","msg":"Cache cleared","time":"2025-08-31T13:41:07.111+02:00"}
+{"component":"main","level":"info","msg":"Logger initialized successfully","time":"2025-08-31T14:03:59.034+02:00"}
+{"component":"main","level":"info","msg":"🚀 Initializing Akira Torrent Manager...","time":"2025-08-31T14:03:59.036+02:00"}
+{"auth_session_ttl":3600000000000,"cleanup_interval":600000000000,"component":"cache","disk_space_ttl":300000000000,"level":"info","max_items":1000,"msg":"Cache manager initialized successfully","time":"2025-08-31T14:03:59.036+02:00"}
+{"base_url":"http://172.31.64.1:8080","component":"qbittorrent","level":"info","msg":"qBittorrent client created","time":"2025-08-31T14:03:59.036+02:00","timeout":30000000000,"username":"admin"}
+{"component":"qbittorrent","level":"info","msg":"Authenticating with qBittorrent","time":"2025-08-31T14:03:59.036+02:00"}
+{"component":"qbittorrent","level":"info","msg":"Authentication successful","time":"2025-08-31T14:03:59.112+02:00"}
+{"component":"main","level":"info","msg":"✅ Connected to qBittorrent successfully","time":"2025-08-31T14:03:59.112+02:00"}
+{"component":"seeding_manager","level":"info","msg":"Starting seeding management service","time":"2025-08-31T14:03:59.112+02:00"}
+{"check_interval":300000000000,"component":"seeding_manager","level":"info","msg":"Seeding management service started","time":"2025-08-31T14:03:59.112+02:00","time_multiplier":10,"tracked_torrents":0,"tracking_file":"seeding_tracking.json"}
+{"component":"main","level":"info","msg":"🌱 Seeding management service started","time":"2025-08-31T14:03:59.112+02:00"}
+{"component":"main","level":"info","msg":"✅ All services initialized successfully","time":"2025-08-31T14:03:59.112+02:00"}
+{"component":"seeding_manager","level":"info","msg":"Background seeding processor started","time":"2025-08-31T14:03:59.112+02:00"}
+{"component":"main","level":"info","msg":"🧹 Cleaning up services...","time":"2025-08-31T14:03:59.112+02:00"}
+{"component":"seeding_manager","level":"info","msg":"Stopping seeding management service","time":"2025-08-31T14:03:59.112+02:00"}
+{"component":"seeding_manager","level":"info","msg":"Seeding management service stopped","time":"2025-08-31T14:03:59.112+02:00"}
+{"component":"main","level":"info","msg":"✅ Seeding service stopped","time":"2025-08-31T14:03:59.112+02:00"}
+{"component":"seeding_manager","level":"info","msg":"Background seeding processor stopped","time":"2025-08-31T14:03:59.112+02:00"}
+{"component":"qbittorrent","level":"info","msg":"Logging out from qBittorrent","time":"2025-08-31T14:03:59.112+02:00"}
+{"component":"qbittorrent","level":"info","msg":"Logout completed","time":"2025-08-31T14:03:59.115+02:00"}
+{"component":"main","level":"info","msg":"✅ Logged out from qBittorrent","time":"2025-08-31T14:03:59.115+02:00"}
+{"component":"cache","level":"info","msg":"Shutting down cache manager","time":"2025-08-31T14:03:59.115+02:00"}
+{"component":"cache","deletes":0,"evictions":0,"hit_ratio":"0.00%","hits":0,"item_count":0,"level":"info","misses":0,"msg":"Cache statistics","sets":0,"time":"2025-08-31T14:03:59.115+02:00","uptime":"78.657104ms"}
+{"component":"cache","level":"info","msg":"Cache statistics reset","time":"2025-08-31T14:03:59.115+02:00"}
+{"component":"cache","level":"info","msg":"Cache cleared","time":"2025-08-31T14:03:59.115+02:00"}
+{"component":"main","level":"info","msg":"✅ Cache manager shutdown","time":"2025-08-31T14:03:59.115+02:00"}
+{"component":"main","level":"info","msg":"✅ Cleanup completed","time":"2025-08-31T14:03:59.115+02:00"}
+{"component":"main","level":"info","msg":"Logger initialized successfully","time":"2025-08-31T14:04:13.583+02:00"}
+{"component":"main","level":"info","msg":"🚀 Initializing Akira Torrent Manager...","time":"2025-08-31T14:04:13.583+02:00"}
+{"auth_session_ttl":3600000000000,"cleanup_interval":600000000000,"component":"cache","disk_space_ttl":300000000000,"level":"info","max_items":1000,"msg":"Cache manager initialized successfully","time":"2025-08-31T14:04:13.583+02:00"}
+{"base_url":"http://172.31.64.1:8080","component":"qbittorrent","level":"info","msg":"qBittorrent client created","time":"2025-08-31T14:04:13.583+02:00","timeout":30000000000,"username":"admin"}
+{"component":"qbittorrent","level":"info","msg":"Authenticating with qBittorrent","time":"2025-08-31T14:04:13.583+02:00"}
+{"component":"qbittorrent","level":"info","msg":"Authentication successful","time":"2025-08-31T14:04:13.642+02:00"}
+{"component":"main","level":"info","msg":"✅ Connected to qBittorrent successfully","time":"2025-08-31T14:04:13.642+02:00"}
+{"component":"seeding_manager","level":"info","msg":"Starting seeding management service","time":"2025-08-31T14:04:13.642+02:00"}
+{"component":"seeding_manager","file":"seeding_tracking.json","level":"info","msg":"Tracking data loaded from disk","time":"2025-08-31T14:04:13.642+02:00","tracked_torrents":0}
+{"check_interval":300000000000,"component":"seeding_manager","level":"info","msg":"Seeding management service started","time":"2025-08-31T14:04:13.642+02:00","time_multiplier":10,"tracked_torrents":0,"tracking_file":"seeding_tracking.json"}
+{"component":"main","level":"info","msg":"🌱 Seeding management service started","time":"2025-08-31T14:04:13.642+02:00"}
+{"component":"main","level":"info","msg":"✅ All services initialized successfully","time":"2025-08-31T14:04:13.642+02:00"}
+{"component":"seeding_manager","level":"info","msg":"Background seeding processor started","time":"2025-08-31T14:04:13.642+02:00"}
+{"component":"main","level":"info","msg":"🧹 Cleaning up services...","time":"2025-08-31T14:04:13.642+02:00"}
+{"component":"seeding_manager","level":"info","msg":"Stopping seeding management service","time":"2025-08-31T14:04:13.642+02:00"}
+{"component":"seeding_manager","level":"info","msg":"Background seeding processor stopped","time":"2025-08-31T14:04:13.643+02:00"}
+{"component":"seeding_manager","level":"info","msg":"Seeding management service stopped","time":"2025-08-31T14:04:13.643+02:00"}
+{"component":"main","level":"info","msg":"✅ Seeding service stopped","time":"2025-08-31T14:04:13.643+02:00"}
+{"component":"qbittorrent","level":"info","msg":"Logging out from qBittorrent","time":"2025-08-31T14:04:13.643+02:00"}
+{"component":"qbittorrent","level":"info","msg":"Logout completed","time":"2025-08-31T14:04:13.644+02:00"}
+{"component":"main","level":"info","msg":"✅ Logged out from qBittorrent","time":"2025-08-31T14:04:13.645+02:00"}
+{"component":"cache","level":"info","msg":"Shutting down cache manager","time":"2025-08-31T14:04:13.645+02:00"}
+{"component":"cache","deletes":0,"evictions":0,"hit_ratio":"0.00%","hits":0,"item_count":0,"level":"info","misses":0,"msg":"Cache statistics","sets":0,"time":"2025-08-31T14:04:13.645+02:00","uptime":"61.673518ms"}
+{"component":"cache","level":"info","msg":"Cache statistics reset","time":"2025-08-31T14:04:13.645+02:00"}
+{"component":"cache","level":"info","msg":"Cache cleared","time":"2025-08-31T14:04:13.645+02:00"}
+{"component":"main","level":"info","msg":"✅ Cache manager shutdown","time":"2025-08-31T14:04:13.645+02:00"}
+{"component":"main","level":"info","msg":"✅ Cleanup completed","time":"2025-08-31T14:04:13.645+02:00"}
+{"component":"main","level":"info","msg":"Logger initialized successfully","time":"2025-08-31T14:04:35.905+02:00"}
+{"component":"main","level":"info","msg":"🚀 Initializing Akira Torrent Manager...","time":"2025-08-31T14:04:35.906+02:00"}
+{"auth_session_ttl":3600000000000,"cleanup_interval":600000000000,"component":"cache","disk_space_ttl":300000000000,"level":"info","max_items":1000,"msg":"Cache manager initialized successfully","time":"2025-08-31T14:04:35.907+02:00"}
+{"base_url":"http://172.31.64.1:8080","component":"qbittorrent","level":"info","msg":"qBittorrent client created","time":"2025-08-31T14:04:35.907+02:00","timeout":30000000000,"username":"admin"}
+{"component":"qbittorrent","level":"info","msg":"Authenticating with qBittorrent","time":"2025-08-31T14:04:35.907+02:00"}
+{"component":"qbittorrent","level":"info","msg":"Authentication successful","time":"2025-08-31T14:04:35.968+02:00"}
+{"component":"main","level":"info","msg":"✅ Connected to qBittorrent successfully","time":"2025-08-31T14:04:35.968+02:00"}
+{"component":"seeding_manager","level":"info","msg":"Starting seeding management service","time":"2025-08-31T14:04:35.968+02:00"}
+{"component":"seeding_manager","file":"seeding_tracking.json","level":"info","msg":"Tracking data loaded from disk","time":"2025-08-31T14:04:35.968+02:00","tracked_torrents":0}
+{"check_interval":300000000000,"component":"seeding_manager","level":"info","msg":"Seeding management service started","time":"2025-08-31T14:04:35.968+02:00","time_multiplier":10,"tracked_torrents":0,"tracking_file":"seeding_tracking.json"}
+{"component":"main","level":"info","msg":"🌱 Seeding management service started","time":"2025-08-31T14:04:35.969+02:00"}
+{"component":"main","level":"info","msg":"✅ All services initialized successfully","time":"2025-08-31T14:04:35.969+02:00"}
+{"component":"seeding_manager","level":"info","msg":"Background seeding processor started","time":"2025-08-31T14:04:35.969+02:00"}
+{"component":"main","level":"info","msg":"🧹 Cleaning up services...","time":"2025-08-31T14:04:35.969+02:00"}
+{"component":"seeding_manager","level":"info","msg":"Stopping seeding management service","time":"2025-08-31T14:04:35.969+02:00"}
+{"component":"seeding_manager","level":"info","msg":"Background seeding processor stopped","time":"2025-08-31T14:04:35.969+02:00"}
+{"component":"seeding_manager","level":"info","msg":"Seeding management service stopped","time":"2025-08-31T14:04:35.969+02:00"}
+{"component":"main","level":"info","msg":"✅ Seeding service stopped","time":"2025-08-31T14:04:35.969+02:00"}
+{"component":"qbittorrent","level":"info","msg":"Logging out from qBittorrent","time":"2025-08-31T14:04:35.970+02:00"}
+{"component":"qbittorrent","level":"info","msg":"Logout completed","time":"2025-08-31T14:04:35.971+02:00"}
+{"component":"main","level":"info","msg":"✅ Logged out from qBittorrent","time":"2025-08-31T14:04:35.971+02:00"}
+{"component":"cache","level":"info","msg":"Shutting down cache manager","time":"2025-08-31T14:04:35.971+02:00"}
+{"component":"cache","deletes":0,"evictions":0,"hit_ratio":"0.00%","hits":0,"item_count":0,"level":"info","misses":0,"msg":"Cache statistics","sets":0,"time":"2025-08-31T14:04:35.971+02:00","uptime":"64.595804ms"}
+{"component":"cache","level":"info","msg":"Cache statistics reset","time":"2025-08-31T14:04:35.971+02:00"}
+{"component":"cache","level":"info","msg":"Cache cleared","time":"2025-08-31T14:04:35.971+02:00"}
+{"component":"main","level":"info","msg":"✅ Cache manager shutdown","time":"2025-08-31T14:04:35.971+02:00"}
+{"component":"main","level":"info","msg":"✅ Cleanup completed","time":"2025-08-31T14:04:35.971+02:00"}
+{"component":"main","level":"info","msg":"Logger initialized successfully","time":"2025-08-31T14:04:44.602+02:00"}
+{"component":"main","level":"info","msg":"🚀 Initializing Akira Torrent Manager...","time":"2025-08-31T14:04:44.602+02:00"}
+{"auth_session_ttl":3600000000000,"cleanup_interval":600000000000,"component":"cache","disk_space_ttl":300000000000,"level":"info","max_items":1000,"msg":"Cache manager initialized successfully","time":"2025-08-31T14:04:44.602+02:00"}
+{"base_url":"http://172.31.64.1:8080","component":"qbittorrent","level":"info","msg":"qBittorrent client created","time":"2025-08-31T14:04:44.602+02:00","timeout":30000000000,"username":"admin"}
+{"component":"qbittorrent","level":"info","msg":"Authenticating with qBittorrent","time":"2025-08-31T14:04:44.602+02:00"}
+{"component":"qbittorrent","level":"info","msg":"Authentication successful","time":"2025-08-31T14:04:44.664+02:00"}
+{"component":"main","level":"info","msg":"✅ Connected to qBittorrent successfully","time":"2025-08-31T14:04:44.664+02:00"}
+{"component":"seeding_manager","level":"info","msg":"Starting seeding management service","time":"2025-08-31T14:04:44.664+02:00"}
+{"component":"seeding_manager","file":"seeding_tracking.json","level":"info","msg":"Tracking data loaded from disk","time":"2025-08-31T14:04:44.664+02:00","tracked_torrents":0}
+{"check_interval":300000000000,"component":"seeding_manager","level":"info","msg":"Seeding management service started","time":"2025-08-31T14:04:44.664+02:00","time_multiplier":10,"tracked_torrents":0,"tracking_file":"seeding_tracking.json"}
+{"component":"main","level":"info","msg":"🌱 Seeding management service started","time":"2025-08-31T14:04:44.664+02:00"}
+{"component":"main","level":"info","msg":"✅ All services initialized successfully","time":"2025-08-31T14:04:44.664+02:00"}
+{"component":"seeding_manager","level":"info","msg":"Background seeding processor started","time":"2025-08-31T14:04:44.665+02:00"}
+{"component":"main","level":"info","msg":"🧹 Cleaning up services...","time":"2025-08-31T14:04:44.665+02:00"}
+{"component":"seeding_manager","level":"info","msg":"Stopping seeding management service","time":"2025-08-31T14:04:44.665+02:00"}
+{"component":"seeding_manager","level":"info","msg":"Background seeding processor stopped","time":"2025-08-31T14:04:44.665+02:00"}
+{"component":"seeding_manager","level":"info","msg":"Seeding management service stopped","time":"2025-08-31T14:04:44.665+02:00"}
+{"component":"main","level":"info","msg":"✅ Seeding service stopped","time":"2025-08-31T14:04:44.665+02:00"}
+{"component":"qbittorrent","level":"info","msg":"Logging out from qBittorrent","time":"2025-08-31T14:04:44.665+02:00"}
+{"component":"qbittorrent","level":"info","msg":"Logout completed","time":"2025-08-31T14:04:44.666+02:00"}
+{"component":"main","level":"info","msg":"✅ Logged out from qBittorrent","time":"2025-08-31T14:04:44.667+02:00"}
+{"component":"cache","level":"info","msg":"Shutting down cache manager","time":"2025-08-31T14:04:44.667+02:00"}
+{"component":"cache","deletes":0,"evictions":0,"hit_ratio":"0.00%","hits":0,"item_count":0,"level":"info","misses":0,"msg":"Cache statistics","sets":0,"time":"2025-08-31T14:04:44.667+02:00","uptime":"64.196816ms"}
+{"component":"cache","level":"info","msg":"Cache statistics reset","time":"2025-08-31T14:04:44.667+02:00"}
+{"component":"cache","level":"info","msg":"Cache cleared","time":"2025-08-31T14:04:44.667+02:00"}
+{"component":"main","level":"info","msg":"✅ Cache manager shutdown","time":"2025-08-31T14:04:44.667+02:00"}
+{"component":"main","level":"info","msg":"✅ Cleanup completed","time":"2025-08-31T14:04:44.667+02:00"}
+{"component":"main","level":"info","msg":"Logger initialized successfully","time":"2025-08-31T14:04:53.751+02:00"}
+{"component":"main","level":"info","msg":"🚀 Initializing Akira Torrent Manager...","time":"2025-08-31T14:04:53.752+02:00"}
+{"auth_session_ttl":3600000000000,"cleanup_interval":600000000000,"component":"cache","disk_space_ttl":300000000000,"level":"info","max_items":1000,"msg":"Cache manager initialized successfully","time":"2025-08-31T14:04:53.752+02:00"}
+{"base_url":"http://172.31.64.1:8080","component":"qbittorrent","level":"info","msg":"qBittorrent client created","time":"2025-08-31T14:04:53.752+02:00","timeout":30000000000,"username":"admin"}
+{"component":"qbittorrent","level":"info","msg":"Authenticating with qBittorrent","time":"2025-08-31T14:04:53.752+02:00"}
+{"component":"qbittorrent","level":"info","msg":"Authentication successful","time":"2025-08-31T14:04:53.812+02:00"}
+{"component":"main","level":"info","msg":"✅ Connected to qBittorrent successfully","time":"2025-08-31T14:04:53.812+02:00"}
+{"component":"seeding_manager","level":"info","msg":"Starting seeding management service","time":"2025-08-31T14:04:53.812+02:00"}
+{"component":"seeding_manager","file":"seeding_tracking.json","level":"info","msg":"Tracking data loaded from disk","time":"2025-08-31T14:04:53.812+02:00","tracked_torrents":0}
+{"check_interval":300000000000,"component":"seeding_manager","level":"info","msg":"Seeding management service started","time":"2025-08-31T14:04:53.812+02:00","time_multiplier":10,"tracked_torrents":0,"tracking_file":"seeding_tracking.json"}
+{"component":"main","level":"info","msg":"🌱 Seeding management service started","time":"2025-08-31T14:04:53.812+02:00"}
+{"component":"main","level":"info","msg":"✅ All services initialized successfully","time":"2025-08-31T14:04:53.812+02:00"}
+{"component":"seeding_manager","level":"info","msg":"Background seeding processor started","time":"2025-08-31T14:04:53.812+02:00"}
+{"component":"main","level":"info","msg":"🧹 Cleaning up services...","time":"2025-08-31T14:04:53.813+02:00"}
+{"component":"seeding_manager","level":"info","msg":"Stopping seeding management service","time":"2025-08-31T14:04:53.813+02:00"}
+{"component":"seeding_manager","level":"info","msg":"Background seeding processor stopped","time":"2025-08-31T14:04:53.813+02:00"}
+{"component":"seeding_manager","level":"info","msg":"Seeding management service stopped","time":"2025-08-31T14:04:53.813+02:00"}
+{"component":"main","level":"info","msg":"✅ Seeding service stopped","time":"2025-08-31T14:04:53.813+02:00"}
+{"component":"qbittorrent","level":"info","msg":"Logging out from qBittorrent","time":"2025-08-31T14:04:53.813+02:00"}
+{"component":"qbittorrent","level":"info","msg":"Logout completed","time":"2025-08-31T14:04:53.816+02:00"}
+{"component":"main","level":"info","msg":"✅ Logged out from qBittorrent","time":"2025-08-31T14:04:53.816+02:00"}
+{"component":"cache","level":"info","msg":"Shutting down cache manager","time":"2025-08-31T14:04:53.816+02:00"}
+{"component":"cache","deletes":0,"evictions":0,"hit_ratio":"0.00%","hits":0,"item_count":0,"level":"info","misses":0,"msg":"Cache statistics","sets":0,"time":"2025-08-31T14:04:53.816+02:00","uptime":"64.109734ms"}
+{"component":"cache","level":"info","msg":"Cache statistics reset","time":"2025-08-31T14:04:53.816+02:00"}
+{"component":"cache","level":"info","msg":"Cache cleared","time":"2025-08-31T14:04:53.816+02:00"}
+{"component":"main","level":"info","msg":"✅ Cache manager shutdown","time":"2025-08-31T14:04:53.816+02:00"}
+{"component":"main","level":"info","msg":"✅ Cleanup completed","time":"2025-08-31T14:04:53.816+02:00"}
+{"component":"main","level":"info","msg":"Logger initialized successfully","time":"2025-08-31T14:05:03.536+02:00"}
+{"component":"main","level":"info","msg":"🚀 Initializing Akira Torrent Manager...","time":"2025-08-31T14:05:03.536+02:00"}
+{"auth_session_ttl":3600000000000,"cleanup_interval":600000000000,"component":"cache","disk_space_ttl":300000000000,"level":"info","max_items":1000,"msg":"Cache manager initialized successfully","time":"2025-08-31T14:05:03.536+02:00"}
+{"base_url":"http://172.31.64.1:8080","component":"qbittorrent","level":"info","msg":"qBittorrent client created","time":"2025-08-31T14:05:03.536+02:00","timeout":30000000000,"username":"admin"}
+{"component":"qbittorrent","level":"info","msg":"Authenticating with qBittorrent","time":"2025-08-31T14:05:03.536+02:00"}
+{"component":"qbittorrent","level":"info","msg":"Authentication successful","time":"2025-08-31T14:05:03.598+02:00"}
+{"component":"main","level":"info","msg":"✅ Connected to qBittorrent successfully","time":"2025-08-31T14:05:03.598+02:00"}
+{"component":"seeding_manager","level":"info","msg":"Starting seeding management service","time":"2025-08-31T14:05:03.598+02:00"}
+{"component":"seeding_manager","file":"seeding_tracking.json","level":"info","msg":"Tracking data loaded from disk","time":"2025-08-31T14:05:03.598+02:00","tracked_torrents":0}
+{"check_interval":300000000000,"component":"seeding_manager","level":"info","msg":"Seeding management service started","time":"2025-08-31T14:05:03.598+02:00","time_multiplier":10,"tracked_torrents":0,"tracking_file":"seeding_tracking.json"}
+{"component":"main","level":"info","msg":"🌱 Seeding management service started","time":"2025-08-31T14:05:03.598+02:00"}
+{"component":"main","level":"info","msg":"✅ All services initialized successfully","time":"2025-08-31T14:05:03.598+02:00"}
+{"component":"seeding_manager","level":"info","msg":"Background seeding processor started","time":"2025-08-31T14:05:03.598+02:00"}
+{"component":"main","level":"info","msg":"🧹 Cleaning up services...","time":"2025-08-31T14:05:03.598+02:00"}
+{"component":"seeding_manager","level":"info","msg":"Stopping seeding management service","time":"2025-08-31T14:05:03.599+02:00"}
+{"component":"seeding_manager","level":"info","msg":"Background seeding processor stopped","time":"2025-08-31T14:05:03.599+02:00"}
+{"component":"seeding_manager","level":"info","msg":"Seeding management service stopped","time":"2025-08-31T14:05:03.599+02:00"}
+{"component":"main","level":"info","msg":"✅ Seeding service stopped","time":"2025-08-31T14:05:03.599+02:00"}
+{"component":"qbittorrent","level":"info","msg":"Logging out from qBittorrent","time":"2025-08-31T14:05:03.599+02:00"}
+{"component":"qbittorrent","level":"info","msg":"Logout completed","time":"2025-08-31T14:05:03.600+02:00"}
+{"component":"main","level":"info","msg":"✅ Logged out from qBittorrent","time":"2025-08-31T14:05:03.600+02:00"}
+{"component":"cache","level":"info","msg":"Shutting down cache manager","time":"2025-08-31T14:05:03.600+02:00"}
+{"component":"cache","deletes":0,"evictions":0,"hit_ratio":"0.00%","hits":0,"item_count":0,"level":"info","misses":0,"msg":"Cache statistics","sets":0,"time":"2025-08-31T14:05:03.600+02:00","uptime":"64.234477ms"}
+{"component":"cache","level":"info","msg":"Cache statistics reset","time":"2025-08-31T14:05:03.600+02:00"}
+{"component":"cache","level":"info","msg":"Cache cleared","time":"2025-08-31T14:05:03.600+02:00"}
+{"component":"main","level":"info","msg":"✅ Cache manager shutdown","time":"2025-08-31T14:05:03.600+02:00"}
+{"component":"main","level":"info","msg":"✅ Cleanup completed","time":"2025-08-31T14:05:03.601+02:00"}
+{"component":"main","level":"info","msg":"Logger initialized successfully","time":"2025-08-31T14:07:32.075+02:00"}
+{"component":"main","level":"info","msg":"Logger initialized successfully","time":"2025-08-31T14:08:16.599+02:00"}
+{"component":"main","level":"info","msg":"🧹 Cleaning up services...","time":"2025-08-31T14:09:06.806+02:00"}
+{"component":"seeding_manager","level":"info","msg":"Stopping seeding management service","time":"2025-08-31T14:09:06.806+02:00"}
+{"component":"seeding_manager","level":"info","msg":"Background seeding processor started","time":"2025-08-31T14:09:06.806+02:00"}
+{"component":"seeding_manager","level":"info","msg":"Background seeding processor stopped","time":"2025-08-31T14:09:06.806+02:00"}
+{"component":"seeding_manager","file":"seeding_tracking.json","level":"debug","msg":"Tracking data saved to disk","time":"2025-08-31T14:09:06.806+02:00","tracked_torrents":0}
+{"component":"seeding_manager","level":"info","msg":"Seeding management service stopped","time":"2025-08-31T14:09:06.806+02:00"}
+{"component":"main","level":"info","msg":"✅ Seeding service stopped","time":"2025-08-31T14:09:06.806+02:00"}
+{"component":"qbittorrent","level":"info","msg":"Logging out from qBittorrent","time":"2025-08-31T14:09:06.806+02:00"}
+{"component":"qbittorrent","endpoint":"/api/v2/auth/logout","level":"debug","method":"POST","msg":"Making API request","time":"2025-08-31T14:09:06.806+02:00","url":"http://172.31.64.1:8080/api/v2/auth/logout"}
+{"body_length":0,"component":"qbittorrent","level":"debug","msg":"Received API response","status_code":200,"time":"2025-08-31T14:09:06.808+02:00"}
+{"component":"qbittorrent","level":"info","msg":"Logout completed","time":"2025-08-31T14:09:06.808+02:00"}
+{"component":"main","level":"info","msg":"✅ Logged out from qBittorrent","time":"2025-08-31T14:09:06.808+02:00"}
+{"component":"cache","level":"info","msg":"Shutting down cache manager","time":"2025-08-31T14:09:06.808+02:00"}
+{"component":"cache","deletes":0,"evictions":0,"hit_ratio":"0.00%","hits":0,"item_count":0,"level":"info","misses":0,"msg":"Cache statistics","sets":0,"time":"2025-08-31T14:09:06.808+02:00","uptime":"62.069828ms"}
+{"component":"cache","level":"info","msg":"Cache statistics reset","time":"2025-08-31T14:09:06.808+02:00"}
+{"component":"cache","level":"info","msg":"Cache cleared","time":"2025-08-31T14:09:06.808+02:00"}
+{"component":"main","level":"info","msg":"✅ Cache manager shutdown","time":"2025-08-31T14:09:06.808+02:00"}
+{"component":"main","level":"info","msg":"✅ Cleanup completed","time":"2025-08-31T14:09:06.808+02:00"}
