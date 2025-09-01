@@ -25,7 +25,7 @@ if (!(Test-Path $INSTALL_DIR)) {
 # Get latest release version
 Write-Host "Finding latest release..." -ForegroundColor Blue
 try {
-    $ReleasesResponse = Invoke-RestMethod -Uri "https://api.github.com/repos/$GITHUB_REPO/releases/latest" -UseBasicParsing
+    $ReleasesResponse = Invoke-RestMethod -Uri "https://api.github.com/repos/$GITHUB_REPO/releases/latest" -UseBasicParsing -TimeoutSec 30
     $LatestVersion = $ReleasesResponse.tag_name
     Write-Host "Latest version: $LatestVersion" -ForegroundColor Green
 } catch {
@@ -38,16 +38,32 @@ try {
 $RELEASE_URL = "https://github.com/$GITHUB_REPO/releases/download/$LatestVersion/akira-$LatestVersion-$OS-$Arch.zip"
 $ZIP_FILE = "$INSTALL_DIR\akira-$LatestVersion-$OS-$Arch.zip"
 
-# Download binary
+Write-Host "Download URL: $RELEASE_URL" -ForegroundColor Cyan
+
+# Download binary with retry logic
 Write-Host "Downloading Akira binary..." -ForegroundColor Blue
-try {
-    Invoke-WebRequest -Uri $RELEASE_URL -OutFile $ZIP_FILE -UseBasicParsing
-    Write-Host "Download completed successfully" -ForegroundColor Green
-} catch {
-    Write-Host "Failed to download binary: $($_.Exception.Message)" -ForegroundColor Red
-    Write-Host "Please manually download from: https://github.com/$GITHUB_REPO/releases" -ForegroundColor Yellow
-    exit 1
-}
+$MaxRetries = 3
+$RetryCount = 0
+
+do {
+    $RetryCount++
+    try {
+        Write-Host "Attempt $RetryCount of $MaxRetries..." -ForegroundColor Yellow
+        Invoke-WebRequest -Uri $RELEASE_URL -OutFile $ZIP_FILE -UseBasicParsing -TimeoutSec 60
+        Write-Host "Download completed successfully" -ForegroundColor Green
+        break
+    } catch {
+        Write-Host "Download attempt $RetryCount failed: $($_.Exception.Message)" -ForegroundColor Red
+        if ($RetryCount -eq $MaxRetries) {
+            Write-Host "All download attempts failed. Please manually download from:" -ForegroundColor Red
+            Write-Host "https://github.com/$GITHUB_REPO/releases" -ForegroundColor Yellow
+            Write-Host "Direct link: $RELEASE_URL" -ForegroundColor Yellow
+            exit 1
+        }
+        Write-Host "Retrying in 3 seconds..." -ForegroundColor Yellow
+        Start-Sleep -Seconds 3
+    }
+} while ($RetryCount -lt $MaxRetries)
 
 # Extract ZIP file
 Write-Host "Extracting binary..." -ForegroundColor Blue
