@@ -18,19 +18,46 @@ A powerful Discord bot for managing qBittorrent downloads and uploads with an in
 curl -fsSL https://raw.githubusercontent.com/raainshe/akira/main/install.sh | bash
 ```
 
+### Windows
+#### Option 1: Using PowerShell (Recommended)
+```powershell
+# Run PowerShell as Administrator
+Set-ExecutionPolicy Bypass -Scope Process -Force
+Invoke-Expression ((New-Object System.Net.WebClient).DownloadString('https://raw.githubusercontent.com/raainshe/akira/main/install.ps1'))
+```
+
+#### Option 2: Manual Installation
+1. Download the latest Windows release from [GitHub Releases](https://github.com/raainshe/akira/releases)
+2. Extract the ZIP file
+3. Rename `akira-windows-amd64.exe` to `akira.exe`
+4. Add the folder to your PATH or run from the extracted directory
+
+#### Option 3: Using Chocolatey (if available)
+```powershell
+choco install akira
+```
+
 ### Manual Installation
 1. Download the latest release for your platform from [GitHub Releases](https://github.com/raainshe/akira/releases)
 2. Extract the binary and make it executable:
    ```bash
+   # Linux/macOS
    chmod +x akira
+   
+   # Windows
+   # The .exe file is already executable
    ```
 3. Move to your PATH:
    ```bash
-   # System-wide (requires sudo)
+   # Linux/macOS - System-wide (requires sudo)
    sudo mv akira /usr/local/bin/
    
-   # User directory
+   # Linux/macOS - User directory
    mkdir -p ~/.local/bin && mv akira ~/.local/bin/
+   
+   # Windows - Add to PATH
+   # Copy akira.exe to a folder in your PATH (e.g., C:\Windows\System32)
+   # Or add the folder containing akira.exe to your PATH environment variable
    ```
 
 ### From Source
@@ -50,13 +77,21 @@ make install-user  # or make install for system-wide
 
 2. **Configure Environment**
    ```bash
+   # Linux/macOS
    cp .env.example .env
-   # Edit .env with your Discord token and qBittorrent credentials
+   
+   # Windows
+   copy .env.example .env
    ```
+   Edit `.env` with your Discord token and qBittorrent credentials
 
 3. **Start the Bot**
    ```bash
+   # Linux/macOS
    akira daemon
+   
+   # Windows
+   akira.exe daemon
    ```
 
 ## Usage
