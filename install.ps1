@@ -80,7 +80,13 @@ Remove-Item $ZIP_FILE -Force -ErrorAction SilentlyContinue
 
 # Find and rename the extracted binary
 Write-Host "Setting up binary..." -ForegroundColor Blue
-$ExtractedFiles = Get-ChildItem -Path $INSTALL_DIR -Name "akira-windows-*.exe"
+
+# List all files in the directory for debugging
+Write-Host "Files in installation directory:" -ForegroundColor Cyan
+Get-ChildItem -Path $INSTALL_DIR | ForEach-Object { Write-Host "  $($_.Name)" -ForegroundColor Yellow }
+
+# Look for the Windows binary with more flexible pattern matching
+$ExtractedFiles = Get-ChildItem -Path $INSTALL_DIR -Name "*.exe" | Where-Object { $_ -like "*windows*" }
 if ($ExtractedFiles.Count -eq 0) {
     Write-Host "No Windows binary found in extracted files" -ForegroundColor Red
     Write-Host "Available files:" -ForegroundColor Yellow
@@ -91,9 +97,13 @@ if ($ExtractedFiles.Count -eq 0) {
 $OriginalBinary = Join-Path $INSTALL_DIR $ExtractedFiles[0]
 $TargetBinary = Join-Path $INSTALL_DIR $BINARY_NAME
 
+Write-Host "Found binary: $($ExtractedFiles[0])" -ForegroundColor Green
+Write-Host "Will rename to: $BINARY_NAME" -ForegroundColor Green
+
 # Remove existing akira.exe if it exists
 if (Test-Path $TargetBinary) {
     Remove-Item $TargetBinary -Force
+    Write-Host "Removed existing $BINARY_NAME" -ForegroundColor Yellow
 }
 
 # Rename the binary to akira.exe
