@@ -13,9 +13,6 @@ $INSTALL_DIR = "$env:LOCALAPPDATA\akira"
 $Arch = if ([Environment]::Is64BitOperatingSystem) { "amd64" } else { "386" }
 $OS = "windows"
 
-# GitHub release URL
-$RELEASE_URL = "https://github.com/$GITHUB_REPO/releases/download/v$Version/akira-$OS-$Arch.exe"
-
 Write-Host "Installing Akira Torrent Management Bot" -ForegroundColor Blue
 Write-Host "=========================================" -ForegroundColor Blue
 
@@ -25,6 +22,21 @@ if (!(Test-Path $INSTALL_DIR)) {
     Write-Host "Created installation directory: $INSTALL_DIR" -ForegroundColor Blue
 }
 
+# Get latest release version
+Write-Host "Finding latest release..." -ForegroundColor Blue
+try {
+    $ReleasesResponse = Invoke-RestMethod -Uri "https://api.github.com/repos/$GITHUB_REPO/releases/latest" -UseBasicParsing
+    $LatestVersion = $ReleasesResponse.tag_name
+    Write-Host "Latest version: $LatestVersion" -ForegroundColor Green
+} catch {
+    Write-Host "Failed to get latest release info: $($_.Exception.Message)" -ForegroundColor Red
+    Write-Host "Please check if releases are available at: https://github.com/$GITHUB_REPO/releases" -ForegroundColor Yellow
+    exit 1
+}
+
+# GitHub release URL
+$RELEASE_URL = "https://github.com/$GITHUB_REPO/releases/download/$LatestVersion/akira-$OS-$Arch.exe"
+
 # Download binary
 Write-Host "Downloading Akira binary..." -ForegroundColor Blue
 try {
@@ -32,7 +44,18 @@ try {
     Write-Host "Download completed successfully" -ForegroundColor Green
 } catch {
     Write-Host "Failed to download binary: $($_.Exception.Message)" -ForegroundColor Red
-    exit 1
+    Write-Host "Trying alternative download method..." -ForegroundColor Yellow
+    
+    # Try alternative URL format
+    $AltUrl = "https://github.com/$GITHUB_REPO/releases/latest/download/akira-$OS-$Arch.exe"
+    try {
+        Invoke-WebRequest -Uri $AltUrl -OutFile "$INSTALL_DIR\$BINARY_NAME" -UseBasicParsing
+        Write-Host "Download completed successfully (alternative method)" -ForegroundColor Green
+    } catch {
+        Write-Host "All download methods failed. Please manually download from:" -ForegroundColor Red
+        Write-Host "https://github.com/$GITHUB_REPO/releases" -ForegroundColor Yellow
+        exit 1
+    }
 }
 
 # Add to PATH if not already there
