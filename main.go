@@ -27,6 +27,13 @@ var (
 	gitCommit = "unknown"
 )
 
+// Version information injected at build time
+var (
+	Version   = version
+	BuildTime = buildTime
+	GitCommit = gitCommit
+)
+
 // AppServices holds all initialized services
 type AppServices struct {
 	Config         *config.Config
