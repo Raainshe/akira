@@ -88,23 +88,73 @@ func NewRestartCommand(ctx context.Context, cfg *config.Config, torrentService *
 
 // displayAkiraBanner displays the AKIRA ASCII art banner with proper alignment
 func displayAkiraBanner() {
-	fmt.Println(`
-    ╔══════════════════════════════════════════════════════════════╗
-    ║                                                              ║
-    ║     █████  ██  ██ ██ ██  ██ ██████  █████                 ║
-    ║    ██   ██ ██ ██  ██ ██ ██ ██   ██ ██   ██                ║
-    ║    ███████ █████   ██ █████ ██████  ███████                ║
-    ║    ██   ██ ██ ██  ██ ██ ██ ██   ██ ██   ██                ║
-    ║    ██   ██ ██  ██ ██ ██  ██ ██   ██ ██   ██                ║
-    ║                                                              ║
-    ║           🌟 Torrent Management Discord Bot 🌟               ║
-    ║                                                              ║
-    ║     Discord Bot Daemon Starting...                           ║
-    ║     PID: ` + fmt.Sprintf("%-6d", os.Getpid()) + `                                    ║
-    ║     Time: ` + time.Now().Format("2006-01-02 15:04:05") + `                    ║
-    ║                                                              ║
-    ╚══════════════════════════════════════════════════════════════╝
-`)
+	const innerWidth = 62
+
+	// ASCII letters for AKIRA
+	letterA := []string{
+		"  ██  ",
+		" ████ ",
+		"██  ██",
+		"██████",
+		"██  ██",
+	}
+	letterK := []string{
+		"██  ██",
+		"██ ██ ",
+		"████  ",
+		"██ ██ ",
+		"██  ██",
+	}
+	letterI := []string{
+		"██████",
+		"  ██  ",
+		"  ██  ",
+		"  ██  ",
+		"██████",
+	}
+	letterR := []string{
+		"█████ ",
+		"██  ██",
+		"█████ ",
+		"██ ██ ",
+		"██  ██",
+	}
+
+	letters := [][]string{letterA, letterK, letterI, letterR, letterA}
+
+	var rows [5]string
+	for r := 0; r < 5; r++ {
+		var parts []string
+		for i, l := range letters {
+			if i == 0 {
+				parts = append(parts, "       ")
+			}
+			parts = append(parts, l[r])
+			if i < len(letters)-1 {
+				parts = append(parts, "  ")
+			}
+		}
+		rows[r] = strings.Join(parts, "")
+	}
+
+	printLine := func(s string) {
+		fmt.Printf("    ║%-*s║\n", innerWidth, s)
+	}
+
+	fmt.Printf("    ╔%s╗\n", strings.Repeat("═", innerWidth))
+	printLine("")
+	for _, row := range rows {
+		printLine("     " + row)
+	}
+	printLine("")
+	// Manual padding for emoji line to account for wide character display
+	fmt.Printf("    ║             🌟 Torrent Management Discord Bot 🌟             ║\n")
+	printLine("")
+	printLine("     Discord Bot Daemon Starting...")
+	printLine(fmt.Sprintf("     PID: %-6d", os.Getpid()))
+	printLine("     Time: " + time.Now().Format("2006-01-02 15:04:05"))
+	printLine("")
+	fmt.Printf("    ╚%s╝\n", strings.Repeat("═", innerWidth))
 }
 
 func runDaemon(ctx context.Context, cfg *config.Config, torrentService *core.TorrentService,
