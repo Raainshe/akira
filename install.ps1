@@ -78,26 +78,53 @@ try {
 # Clean up ZIP file
 Remove-Item $ZIP_FILE -Force -ErrorAction SilentlyContinue
 
-# Add to PATH if not already there
+# Find and rename the extracted binary
+Write-Host "Setting up binary..." -ForegroundColor Blue
+$ExtractedFiles = Get-ChildItem -Path $INSTALL_DIR -Name "akira-windows-*.exe"
+if ($ExtractedFiles.Count -eq 0) {
+    Write-Host "No Windows binary found in extracted files" -ForegroundColor Red
+    Write-Host "Available files:" -ForegroundColor Yellow
+    Get-ChildItem -Path $INSTALL_DIR | ForEach-Object { Write-Host "  $($_.Name)" -ForegroundColor Yellow }
+    exit 1
+}
+
+$OriginalBinary = Join-Path $INSTALL_DIR $ExtractedFiles[0]
+$TargetBinary = Join-Path $INSTALL_DIR $BINARY_NAME
+
+# Remove existing akira.exe if it exists
+if (Test-Path $TargetBinary) {
+    Remove-Item $TargetBinary -Force
+}
+
+# Rename the binary to akira.exe
+Move-Item -Path $OriginalBinary -Destination $TargetBinary -Force
+Write-Host "Binary renamed to: $BINARY_NAME" -ForegroundColor Green
+
+# Add to PATH with immediate effect for current session
+Write-Host "Adding Akira to PATH..." -ForegroundColor Yellow
 $CurrentPath = [Environment]::GetEnvironmentVariable("PATH", "User")
 if ($CurrentPath -notlike "*$INSTALL_DIR*") {
-    Write-Host "Adding Akira to PATH..." -ForegroundColor Yellow
     $NewPath = "$CurrentPath;$INSTALL_DIR"
     [Environment]::SetEnvironmentVariable("PATH", $NewPath, "User")
-    Write-Host "Added to PATH (requires restart of terminal)" -ForegroundColor Green
+    Write-Host "Added to user PATH permanently" -ForegroundColor Green
 } else {
-    Write-Host "Akira is already in PATH" -ForegroundColor Green
+    Write-Host "Akira is already in user PATH" -ForegroundColor Green
 }
+
+# Also add to current session PATH
+$env:PATH = "$env:PATH;$INSTALL_DIR"
+Write-Host "Added to current session PATH" -ForegroundColor Green
 
 # Verify installation
 Write-Host "Verifying installation..." -ForegroundColor Blue
 try {
-    $VersionOutput = & "$INSTALL_DIR\$BINARY_NAME" --version 2>&1
+    $VersionOutput = & $TargetBinary --version 2>&1
     Write-Host "Akira installed successfully!" -ForegroundColor Green
+    Write-Host "Binary location: $TargetBinary" -ForegroundColor Cyan
     Write-Host "Try running: akira --help" -ForegroundColor Blue
 } catch {
     Write-Host "Installation complete, but verification failed" -ForegroundColor Yellow
-    Write-Host "Try running: $INSTALL_DIR\$BINARY_NAME --help" -ForegroundColor Blue
+    Write-Host "Try running: $TargetBinary --help" -ForegroundColor Blue
 }
 
 Write-Host ""
