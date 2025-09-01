@@ -9,12 +9,21 @@ $GITHUB_REPO = "raainshe/akira"
 $BINARY_NAME = "akira.exe"
 $INSTALL_DIR = "$env:LOCALAPPDATA\akira"
 
-# Detect architecture
-$Arch = if ([Environment]::Is64BitOperatingSystem) { "amd64" } else { "386" }
+# Better architecture detection
+$Arch = if ([Environment]::Is64BitOperatingSystem) {
+    if ([Environment]::GetEnvironmentVariable("PROCESSOR_ARCHITECTURE") -eq "ARM64") {
+        "arm64"
+    } else {
+        "amd64"
+    }
+} else {
+    "386"
+}
 $OS = "windows"
 
 Write-Host "Installing Akira Torrent Management Bot" -ForegroundColor Blue
 Write-Host "=========================================" -ForegroundColor Blue
+Write-Host "Detected architecture: $Arch" -ForegroundColor Cyan
 
 # Create installation directory
 if (!(Test-Path $INSTALL_DIR)) {
@@ -85,20 +94,32 @@ Write-Host "Setting up binary..." -ForegroundColor Blue
 Write-Host "Files in installation directory:" -ForegroundColor Cyan
 Get-ChildItem -Path $INSTALL_DIR | ForEach-Object { Write-Host "  $($_.Name)" -ForegroundColor Yellow }
 
-# Look for the Windows binary with more flexible pattern matching
-$ExtractedFiles = Get-ChildItem -Path $INSTALL_DIR -Name "*.exe" | Where-Object { $_ -like "*windows*" }
+# Look for any .exe file (should be only one)
+$ExtractedFiles = Get-ChildItem -Path $INSTALL_DIR -Name "*.exe"
 if ($ExtractedFiles.Count -eq 0) {
-    Write-Host "No Windows binary found in extracted files" -ForegroundColor Red
+    Write-Host "No .exe files found in extracted files" -ForegroundColor Red
     Write-Host "Available files:" -ForegroundColor Yellow
     Get-ChildItem -Path $INSTALL_DIR | ForEach-Object { Write-Host "  $($_.Name)" -ForegroundColor Yellow }
     exit 1
+}
+
+if ($ExtractedFiles.Count -gt 1) {
+    Write-Host "Multiple .exe files found, using first one:" -ForegroundColor Yellow
+    $ExtractedFiles | ForEach-Object { Write-Host "  $_" -ForegroundColor Yellow }
 }
 
 $OriginalBinary = Join-Path $INSTALL_DIR $ExtractedFiles[0]
 $TargetBinary = Join-Path $INSTALL_DIR $BINARY_NAME
 
 Write-Host "Found binary: $($ExtractedFiles[0])" -ForegroundColor Green
-Write-Host "Will rename to: $BINARY_NAME" -ForegroundColor Green
+Write-Host "Original path: $OriginalBinary" -ForegroundColor Cyan
+Write-Host "Target path: $TargetBinary" -ForegroundColor Cyan
+
+# Verify original file exists
+if (!(Test-Path $OriginalBinary)) {
+    Write-Host "ERROR: Original binary not found at: $OriginalBinary" -ForegroundColor Red
+    exit 1
+}
 
 # Remove existing akira.exe if it exists
 if (Test-Path $TargetBinary) {
@@ -107,8 +128,22 @@ if (Test-Path $TargetBinary) {
 }
 
 # Rename the binary to akira.exe
-Move-Item -Path $OriginalBinary -Destination $TargetBinary -Force
-Write-Host "Binary renamed to: $BINARY_NAME" -ForegroundColor Green
+Write-Host "Renaming binary..." -ForegroundColor Blue
+try {
+    Move-Item -Path $OriginalBinary -Destination $TargetBinary -Force
+    Write-Host "Binary renamed to: $BINARY_NAME" -ForegroundColor Green
+} catch {
+    Write-Host "Failed to rename binary: $($_.Exception.Message)" -ForegroundColor Red
+    Write-Host "Original: $OriginalBinary" -ForegroundColor Yellow
+    Write-Host "Target: $TargetBinary" -ForegroundColor Yellow
+    exit 1
+}
+
+# Verify the renamed file exists
+if (!(Test-Path $TargetBinary)) {
+    Write-Host "ERROR: Renamed binary not found at: $TargetBinary" -ForegroundColor Red
+    exit 1
+}
 
 # Add to PATH with immediate effect for current session
 Write-Host "Adding Akira to PATH..." -ForegroundColor Yellow
