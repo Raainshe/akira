@@ -26,7 +26,13 @@ Set-ExecutionPolicy Bypass -Scope Process -Force
 iwr -useb https://raw.githubusercontent.com/raainshe/akira/main/install.ps1 | iex
 ```
 
-#### Option 2: Manual Installation
+#### Option 2: Using Command Prompt
+```cmd
+# Run Command Prompt as Administrator (or regular CMD for user install)
+curl -fsSL https://raw.githubusercontent.com/raainshe/akira/main/install.cmd | cmd
+```
+
+#### Option 3: Manual Installation
 1. Download the latest Windows release from [GitHub Releases](https://github.com/raainshe/akira/releases)
 2. Extract the ZIP file
 3. Rename `akira-windows-amd64.exe` to `akira.exe`
