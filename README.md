@@ -32,11 +32,6 @@ Invoke-Expression ((New-Object System.Net.WebClient).DownloadString('https://raw
 3. Rename `akira-windows-amd64.exe` to `akira.exe`
 4. Add the folder to your PATH or run from the extracted directory
 
-#### Option 3: Using Chocolatey (if available)
-```powershell
-choco install akira
-```
-
 ### Manual Installation
 1. Download the latest release for your platform from [GitHub Releases](https://github.com/raainshe/akira/releases)
 2. Extract the binary and make it executable:
