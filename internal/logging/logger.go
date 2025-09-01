@@ -92,8 +92,15 @@ func Initialize(cfg *config.LoggingConfig) (*Logger, error) {
 			TimestampFormat: "2006-01-02 15:04:05",
 			ForceColors:     true,
 		})
+	} else if cfg.ToStdout && cfg.File != "" {
+		// Use custom formatter that outputs text to stdout and JSON to file
+		logger.SetFormatter(&logrus.TextFormatter{
+			FullTimestamp:   true,
+			TimestampFormat: "2006-01-02 15:04:05",
+			ForceColors:     true,
+		})
 	} else {
-		// JSON format for file logging or mixed outputs
+		// JSON format for file-only logging
 		logger.SetFormatter(&logrus.JSONFormatter{
 			TimestampFormat: "2006-01-02T15:04:05.000Z07:00",
 		})
