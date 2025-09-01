@@ -21,9 +21,9 @@ curl -fsSL https://raw.githubusercontent.com/raainshe/akira/main/install.sh | ba
 ### Windows
 #### Option 1: Using PowerShell (Recommended)
 ```powershell
-# Run PowerShell as Administrator
+# Run PowerShell as Administrator (or regular PowerShell for user install)
 Set-ExecutionPolicy Bypass -Scope Process -Force
-Invoke-Expression ((New-Object System.Net.WebClient).DownloadString('https://raw.githubusercontent.com/raainshe/akira/main/install.ps1'))
+iwr -useb https://raw.githubusercontent.com/raainshe/akira/main/install.ps1 | iex
 ```
 
 #### Option 2: Manual Installation
