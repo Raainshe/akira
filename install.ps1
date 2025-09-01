@@ -95,7 +95,7 @@ Write-Host "Files in installation directory:" -ForegroundColor Cyan
 Get-ChildItem -Path $INSTALL_DIR | ForEach-Object { Write-Host "  $($_.Name)" -ForegroundColor Yellow }
 
 # Look for any .exe file (should be only one)
-$ExtractedFiles = @(Get-ChildItem -Path $INSTALL_DIR -Name "*.exe")
+$ExtractedFiles = Get-ChildItem -Path $INSTALL_DIR -Filter "*.exe"
 if ($ExtractedFiles.Count -eq 0) {
     Write-Host "No .exe files found in extracted files" -ForegroundColor Red
     Write-Host "Available files:" -ForegroundColor Yellow
@@ -105,14 +105,13 @@ if ($ExtractedFiles.Count -eq 0) {
 
 if ($ExtractedFiles.Count -gt 1) {
     Write-Host "Multiple .exe files found, using first one:" -ForegroundColor Yellow
-    $ExtractedFiles | ForEach-Object { Write-Host "  $_" -ForegroundColor Yellow }
+    $ExtractedFiles | ForEach-Object { Write-Host "  $($_.Name)" -ForegroundColor Yellow }
 }
 
-$OriginalBinaryName = $ExtractedFiles[0]
-$OriginalBinary = Join-Path $INSTALL_DIR $OriginalBinaryName
+$OriginalBinary = $ExtractedFiles[0].FullName
 $TargetBinary = Join-Path $INSTALL_DIR $BINARY_NAME
 
-Write-Host "Found binary: $OriginalBinaryName" -ForegroundColor Green
+Write-Host "Found binary: $($ExtractedFiles[0].Name)" -ForegroundColor Green
 Write-Host "Original path: $OriginalBinary" -ForegroundColor Cyan
 Write-Host "Target path: $TargetBinary" -ForegroundColor Cyan
 
