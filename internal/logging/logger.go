@@ -27,6 +27,18 @@ const (
 	ComponentMain        Component = "main"
 )
 
+// MultiFormatter formats logs differently for stdout vs file output
+type MultiFormatter struct {
+	textFormatter *logrus.TextFormatter
+	jsonFormatter *logrus.JSONFormatter
+}
+
+// Format formats the log entry
+func (f *MultiFormatter) Format(entry *logrus.Entry) ([]byte, error) {
+	// Use text formatter for human-readable output
+	return f.textFormatter.Format(entry)
+}
+
 // Logger wraps logrus.Logger with additional functionality
 type Logger struct {
 	*logrus.Logger
@@ -93,14 +105,19 @@ func Initialize(cfg *config.LoggingConfig) (*Logger, error) {
 			ForceColors:     true,
 		})
 	} else if cfg.ToStdout && cfg.File != "" {
-		// Use custom formatter that outputs text to stdout and JSON to file
-		logger.SetFormatter(&logrus.TextFormatter{
-			FullTimestamp:   true,
-			TimestampFormat: "2006-01-02 15:04:05",
-			ForceColors:     true,
+		// Use custom multi-formatter for both stdout and file
+		logger.SetFormatter(&MultiFormatter{
+			textFormatter: &logrus.TextFormatter{
+				FullTimestamp:   true,
+				TimestampFormat: "2006-01-02 15:04:05",
+				ForceColors:     true,
+			},
+			jsonFormatter: &logrus.JSONFormatter{
+				TimestampFormat: "2006-01-02T15:04:05.000Z07:00",
+			},
 		})
 	} else {
-		// JSON format for file-only logging
+		// JSON format for file logging only
 		logger.SetFormatter(&logrus.JSONFormatter{
 			TimestampFormat: "2006-01-02T15:04:05.000Z07:00",
 		})
