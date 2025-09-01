@@ -95,62 +95,43 @@ REM List all files in the directory for debugging
 echo Files in installation directory:
 dir "%INSTALL_DIR%\*.exe" /b
 
-REM Find the .exe file
-echo Searching for .exe files in: %INSTALL_DIR%
-for %%f in ("%INSTALL_DIR%\*.exe") do (
-    echo Found file: %%f
-    set "ORIGINAL_BINARY=%%f"
-    set "ORIGINAL_NAME=%%~nxf"
-    echo Set ORIGINAL_NAME to: !ORIGINAL_NAME!
-    goto :found_binary
+REM Use a simpler approach to find and rename the binary
+cd /d "%INSTALL_DIR%"
+for %%f in (*.exe) do (
+    echo Found binary: %%f
+    if not "%%f"=="%BINARY_NAME%" (
+        echo Renaming %%f to %BINARY_NAME%
+        ren "%%f" "%BINARY_NAME%"
+        if errorlevel 1 (
+            echo Failed to rename binary
+            pause
+            exit /b 1
+        )
+        echo Binary renamed successfully
+        goto :binary_renamed
+    ) else (
+        echo Binary already has correct name
+        goto :binary_renamed
+    )
 )
 
-echo No .exe files found in extracted files
+echo No .exe files found
 echo Available files:
-dir "%INSTALL_DIR%" /b
+dir /b
 pause
 exit /b 1
 
-:found_binary
+:binary_renamed
 set "TARGET_BINARY=%INSTALL_DIR%\%BINARY_NAME%"
-
-echo Found binary: !ORIGINAL_NAME!
-echo Original path: !ORIGINAL_BINARY!
-echo Target path: !TARGET_BINARY!
-
-REM Verify original file exists
-if not exist "!ORIGINAL_BINARY!" (
-    echo ERROR: Original binary not found at: !ORIGINAL_BINARY!
-    pause
-    exit /b 1
-)
-
-REM Remove existing akira.exe if it exists
-if exist "!TARGET_BINARY!" (
-    del "!TARGET_BINARY!"
-    echo Removed existing %BINARY_NAME%
-)
-
-REM Rename the binary to akira.exe
-echo Renaming binary...
-cd /d "%INSTALL_DIR%"
-ren "!ORIGINAL_NAME!" "%BINARY_NAME%"
-if errorlevel 1 (
-    echo Failed to rename binary
-    echo Original: !ORIGINAL_NAME!
-    echo Target: %BINARY_NAME%
-    pause
-    exit /b 1
-)
-
-echo Binary renamed to: %BINARY_NAME%
 
 REM Verify the renamed file exists
 if not exist "%TARGET_BINARY%" (
-    echo ERROR: Renamed binary not found at: %TARGET_BINARY%
+    echo ERROR: Binary not found at: %TARGET_BINARY%
     pause
     exit /b 1
 )
+
+echo Binary ready: %TARGET_BINARY%
 
 REM Add to PATH
 echo Adding Akira to PATH...
