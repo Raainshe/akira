@@ -95,31 +95,18 @@ REM List all files in the directory for debugging
 echo Files in installation directory:
 dir "%INSTALL_DIR%\*.exe" /b
 
-REM Use a simpler approach to find and rename the binary
-cd /d "%INSTALL_DIR%"
-for %%f in (*.exe) do (
-    echo Found binary: %%f
-    if not "%%f"=="%BINARY_NAME%" (
-        echo Renaming %%f to %BINARY_NAME%
-        ren "%%f" "%BINARY_NAME%"
-        if errorlevel 1 (
-            echo Failed to rename binary
-            pause
-            exit /b 1
-        )
-        echo Binary renamed successfully
-        goto :binary_renamed
-    ) else (
-        echo Binary already has correct name
-        goto :binary_renamed
-    )
+REM Use PowerShell to find and rename the binary (avoids CMD variable expansion issues)
+echo Finding and renaming binary...
+powershell -Command "try { $files = Get-ChildItem -Path '%INSTALL_DIR%' -Filter '*.exe'; if ($files.Count -eq 0) { exit 1 }; $file = $files[0]; Write-Host 'Found binary:' $file.Name; if ($file.Name -ne '%BINARY_NAME%') { Write-Host 'Renaming' $file.Name 'to' '%BINARY_NAME%'; Rename-Item -Path $file.FullName -NewName '%BINARY_NAME%' -Force; Write-Host 'Binary renamed successfully' } else { Write-Host 'Binary already has correct name' }; exit 0 } catch { exit 1 }"
+if errorlevel 1 (
+    echo Failed to rename binary using PowerShell
+    echo Available files:
+    dir "%INSTALL_DIR%" /b
+    pause
+    exit /b 1
 )
 
-echo No .exe files found
-echo Available files:
-dir /b
-pause
-exit /b 1
+echo Binary renaming completed
 
 :binary_renamed
 set "TARGET_BINARY=%INSTALL_DIR%\%BINARY_NAME%"
