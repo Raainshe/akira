@@ -96,9 +96,12 @@ echo Files in installation directory:
 dir "%INSTALL_DIR%\*.exe" /b
 
 REM Find the .exe file
+echo Searching for .exe files in: %INSTALL_DIR%
 for %%f in ("%INSTALL_DIR%\*.exe") do (
+    echo Found file: %%f
     set "ORIGINAL_BINARY=%%f"
     set "ORIGINAL_NAME=%%~nxf"
+    echo Set ORIGINAL_NAME to: !ORIGINAL_NAME!
     goto :found_binary
 )
 
@@ -111,30 +114,30 @@ exit /b 1
 :found_binary
 set "TARGET_BINARY=%INSTALL_DIR%\%BINARY_NAME%"
 
-echo Found binary: %ORIGINAL_NAME%
-echo Original path: %ORIGINAL_BINARY%
-echo Target path: %TARGET_BINARY%
+echo Found binary: !ORIGINAL_NAME!
+echo Original path: !ORIGINAL_BINARY!
+echo Target path: !TARGET_BINARY!
 
 REM Verify original file exists
-if not exist "%ORIGINAL_BINARY%" (
-    echo ERROR: Original binary not found at: %ORIGINAL_BINARY%
+if not exist "!ORIGINAL_BINARY!" (
+    echo ERROR: Original binary not found at: !ORIGINAL_BINARY!
     pause
     exit /b 1
 )
 
 REM Remove existing akira.exe if it exists
-if exist "%TARGET_BINARY%" (
-    del "%TARGET_BINARY%"
+if exist "!TARGET_BINARY!" (
+    del "!TARGET_BINARY!"
     echo Removed existing %BINARY_NAME%
 )
 
 REM Rename the binary to akira.exe
 echo Renaming binary...
 cd /d "%INSTALL_DIR%"
-ren "%ORIGINAL_NAME%" "%BINARY_NAME%"
+ren "!ORIGINAL_NAME!" "%BINARY_NAME%"
 if errorlevel 1 (
     echo Failed to rename binary
-    echo Original: %ORIGINAL_NAME%
+    echo Original: !ORIGINAL_NAME!
     echo Target: %BINARY_NAME%
     pause
     exit /b 1
