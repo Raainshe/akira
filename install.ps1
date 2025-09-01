@@ -34,29 +34,33 @@ try {
     exit 1
 }
 
-# GitHub release URL
-$RELEASE_URL = "https://github.com/$GITHUB_REPO/releases/download/$LatestVersion/akira-$OS-$Arch.exe"
+# GitHub release URL for ZIP file
+$RELEASE_URL = "https://github.com/$GITHUB_REPO/releases/download/$LatestVersion/akira-$LatestVersion-$OS-$Arch.zip"
+$ZIP_FILE = "$INSTALL_DIR\akira-$LatestVersion-$OS-$Arch.zip"
 
 # Download binary
 Write-Host "Downloading Akira binary..." -ForegroundColor Blue
 try {
-    Invoke-WebRequest -Uri $RELEASE_URL -OutFile "$INSTALL_DIR\$BINARY_NAME" -UseBasicParsing
+    Invoke-WebRequest -Uri $RELEASE_URL -OutFile $ZIP_FILE -UseBasicParsing
     Write-Host "Download completed successfully" -ForegroundColor Green
 } catch {
     Write-Host "Failed to download binary: $($_.Exception.Message)" -ForegroundColor Red
-    Write-Host "Trying alternative download method..." -ForegroundColor Yellow
-    
-    # Try alternative URL format
-    $AltUrl = "https://github.com/$GITHUB_REPO/releases/latest/download/akira-$OS-$Arch.exe"
-    try {
-        Invoke-WebRequest -Uri $AltUrl -OutFile "$INSTALL_DIR\$BINARY_NAME" -UseBasicParsing
-        Write-Host "Download completed successfully (alternative method)" -ForegroundColor Green
-    } catch {
-        Write-Host "All download methods failed. Please manually download from:" -ForegroundColor Red
-        Write-Host "https://github.com/$GITHUB_REPO/releases" -ForegroundColor Yellow
-        exit 1
-    }
+    Write-Host "Please manually download from: https://github.com/$GITHUB_REPO/releases" -ForegroundColor Yellow
+    exit 1
 }
+
+# Extract ZIP file
+Write-Host "Extracting binary..." -ForegroundColor Blue
+try {
+    Expand-Archive -Path $ZIP_FILE -DestinationPath $INSTALL_DIR -Force
+    Write-Host "Extraction completed successfully" -ForegroundColor Green
+} catch {
+    Write-Host "Failed to extract binary: $($_.Exception.Message)" -ForegroundColor Red
+    exit 1
+}
+
+# Clean up ZIP file
+Remove-Item $ZIP_FILE -Force -ErrorAction SilentlyContinue
 
 # Add to PATH if not already there
 $CurrentPath = [Environment]::GetEnvironmentVariable("PATH", "User")
