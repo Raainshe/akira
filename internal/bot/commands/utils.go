@@ -154,7 +154,7 @@ func formatLogs(logs []string, level string) string {
 
 		// Parse the log line and format it cleanly
 		formattedLine := parseAndFormatLogLine(log)
-		
+
 		// Truncate if too long
 		if len(formattedLine) > 200 {
 			formattedLine = formattedLine[:197] + "..."
@@ -177,12 +177,12 @@ func formatLogs(logs []string, level string) string {
 func parseAndFormatLogLine(logLine string) string {
 	// Remove ANSI color codes
 	cleanLine := removeANSICodes(logLine)
-	
+
 	// Try to parse as JSON first (structured logrus output)
 	if strings.Contains(cleanLine, `"level"`) && strings.Contains(cleanLine, `"msg"`) {
 		return parseStructuredLog(cleanLine)
 	}
-	
+
 	// If not structured, try to clean up common logrus text format
 	return cleanLogrusText(cleanLine)
 }
@@ -192,24 +192,24 @@ func removeANSICodes(line string) string {
 	// Remove ANSI color codes like [31m, [0m, etc.
 	var result strings.Builder
 	inEscape := false
-	
+
 	for i := 0; i < len(line); i++ {
 		if line[i] == '\x1b' && i+1 < len(line) && line[i+1] == '[' {
 			inEscape = true
 			i++ // Skip the [
 			continue
 		}
-		
+
 		if inEscape {
 			if line[i] == 'm' {
 				inEscape = false
 			}
 			continue
 		}
-		
+
 		result.WriteByte(line[i])
 	}
-	
+
 	return result.String()
 }
 
@@ -217,34 +217,34 @@ func removeANSICodes(line string) string {
 func parseStructuredLog(jsonLine string) string {
 	// Simple JSON parsing for common logrus fields
 	// We'll extract the key fields and format them nicely
-	
+
 	// Extract level
 	level := extractJSONField(jsonLine, "level")
 	if level == "" {
 		level = "INFO"
 	}
-	
+
 	// Extract message
 	msg := extractJSONField(jsonLine, "msg")
 	if msg == "" {
 		msg = "No message"
 	}
-	
+
 	// Extract time
 	time := extractJSONField(jsonLine, "time")
 	if time == "" {
 		time = "Unknown time"
 	}
-	
+
 	// Extract component
 	component := extractJSONField(jsonLine, "component")
-	
+
 	// Extract error if present
 	error := extractJSONField(jsonLine, "error")
-	
+
 	// Format the log line
 	var result strings.Builder
-	
+
 	// Add level emoji
 	switch strings.ToUpper(level) {
 	case "ERROR":
@@ -258,25 +258,25 @@ func parseStructuredLog(jsonLine string) string {
 	default:
 		result.WriteString("📝 ")
 	}
-	
+
 	// Add level and time
 	result.WriteString(fmt.Sprintf("**%s** | %s", strings.ToUpper(level), time))
-	
+
 	// Add component if present
 	if component != "" {
 		result.WriteString(fmt.Sprintf(" | **%s**", component))
 	}
-	
+
 	result.WriteString("\n")
-	
+
 	// Add message
 	result.WriteString(fmt.Sprintf("**Message:** %s", msg))
-	
+
 	// Add error if present
 	if error != "" {
 		result.WriteString(fmt.Sprintf("\n**Error:** %s", error))
 	}
-	
+
 	return result.String()
 }
 
@@ -284,7 +284,7 @@ func parseStructuredLog(jsonLine string) string {
 func cleanLogrusText(line string) string {
 	// Remove common logrus prefixes and clean up the format
 	// Example: time="2025-09-02T21:50:57+02:00" level=error msg="Authentication failed"
-	
+
 	// Remove time prefix if present
 	if strings.HasPrefix(line, "time=") {
 		// Find the end of the time field
@@ -292,7 +292,7 @@ func cleanLogrusText(line string) string {
 			line = line[idx:]
 		}
 	}
-	
+
 	// Clean up level field
 	if strings.HasPrefix(line, "level=") {
 		// Extract level
@@ -300,7 +300,7 @@ func cleanLogrusText(line string) string {
 		if levelEnd != -1 {
 			level := line[6:levelEnd] // "level=" is 6 chars
 			line = line[levelEnd+1:]
-			
+
 			// Add level emoji
 			var levelEmoji string
 			switch strings.ToUpper(level) {
@@ -315,16 +315,16 @@ func cleanLogrusText(line string) string {
 			default:
 				levelEmoji = "📝 "
 			}
-			
+
 			line = levelEmoji + "**" + strings.ToUpper(level) + "** " + line
 		}
 	}
-	
+
 	// Clean up msg field
 	if strings.HasPrefix(line, "msg=") {
 		line = strings.Replace(line, "msg=", "**Message:** ", 1)
 	}
-	
+
 	// Clean up component field
 	if strings.Contains(line, "component=") {
 		// Extract component
@@ -335,17 +335,17 @@ func cleanLogrusText(line string) string {
 				componentEnd = len(line) - componentStart
 			}
 			component := line[componentStart : componentStart+componentEnd]
-			
+
 			// Replace component= with formatted version
 			line = strings.Replace(line, "component="+component, "**Component:** "+component, 1)
 		}
 	}
-	
+
 	// Clean up error field
 	if strings.Contains(line, "error=") {
 		line = strings.Replace(line, "error=", "**Error:** ", 1)
 	}
-	
+
 	return line
 }
 
@@ -353,14 +353,14 @@ func cleanLogrusText(line string) string {
 func extractJSONField(json, field string) string {
 	// Simple JSON field extraction
 	fieldPattern := fmt.Sprintf(`"%s"\s*:\s*"([^"]*)"`, field)
-	
+
 	// Use regex to find the field value
 	re := regexp.MustCompile(fieldPattern)
 	matches := re.FindStringSubmatch(json)
 	if len(matches) > 1 {
 		return matches[1]
 	}
-	
+
 	return ""
 }
 

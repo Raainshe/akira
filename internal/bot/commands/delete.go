@@ -324,11 +324,11 @@ func HandleDeleteCategorySelect(s *discordgo.Session, i *discordgo.InteractionCr
 	// Discord limits select menus to 25 options
 	const maxOptions = 25
 	totalTorrents := len(torrents)
-	
+
 	// Create select menu options for torrents (limited to 25)
 	var options []discordgo.SelectMenuOption
 	var torrentsToShow []qbittorrent.Torrent
-	
+
 	if totalTorrents <= maxOptions {
 		// If we have 25 or fewer torrents, show them all
 		torrentsToShow = torrents
@@ -377,7 +377,7 @@ func HandleDeleteCategorySelect(s *discordgo.Session, i *discordgo.InteractionCr
 	// Create embed explaining the process
 	var embedTitle string
 	var embedDescription string
-	
+
 	if totalTorrents <= maxOptions {
 		embedTitle = fmt.Sprintf("🗑️ Delete Torrents - %s", strings.Title(selectedCategory))
 		embedDescription = fmt.Sprintf("Select the torrents you want to delete from the **%s** category.\n\n**Note:** This will permanently delete both the torrent and all downloaded files.\n\n**Available:** %d torrent(s)", strings.Title(selectedCategory), totalTorrents)

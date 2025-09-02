@@ -103,12 +103,73 @@ func HandleTorrentsPagination(s *discordgo.Session, i *discordgo.InteractionCrea
 	// Extract page number from custom ID
 	customID := i.MessageComponentData().CustomID
 	pageStr := customID[5:] // Remove "page_" prefix
-	_, err := strconv.Atoi(pageStr)
+	page, err := strconv.Atoi(pageStr)
 	if err != nil {
 		respondWithError(s, i, "Invalid page number")
 		return
 	}
 
-	// Re-run torrents command with new page
-	HandleTorrentsCommand(s, i, torrentService)
+	// Create filter (assume no filter for now)
+	torrentFilter := &core.TorrentFilter{
+		Limit: 10, // Show 10 torrents per page for Discord
+	}
+
+	// Get all torrents first to calculate total pages
+	ctx := context.Background()
+	allTorrents, err := torrentService.GetTorrents(ctx, torrentFilter)
+	if err != nil {
+		respondWithError(s, i, fmt.Sprintf("Failed to get torrents: %v", err))
+		return
+	}
+
+	// Calculate total pages based on all matching torrents
+	totalPages := 1
+	if len(allTorrents) > 0 {
+		totalPages = (len(allTorrents) + torrentFilter.Limit - 1) / torrentFilter.Limit
+	}
+
+	// Ensure page is within valid range
+	if page > totalPages {
+		page = totalPages
+	}
+	if page < 1 {
+		page = 1
+	}
+
+	// Calculate offset for pagination
+	offset := (page - 1) * torrentFilter.Limit
+
+	// Get torrents for the current page
+	var pageTorrents []qbittorrent.Torrent
+	if offset < len(allTorrents) {
+		end := offset + torrentFilter.Limit
+		if end > len(allTorrents) {
+			end = len(allTorrents)
+		}
+		pageTorrents = allTorrents[offset:end]
+	}
+
+	// Format response
+	content := formatTorrentList(pageTorrents, page, totalPages)
+
+	// Create embed
+	embed := createInfoEmbed("📋 Torrent List", content)
+
+	// Add pagination components if needed
+	var components []discordgo.MessageComponent
+	if totalPages > 1 {
+		components = createPaginationComponents(page, totalPages)
+	}
+
+	// Update the message instead of creating a new response
+	_, err = s.InteractionResponseEdit(i.Interaction, &discordgo.WebhookEdit{
+		Embeds:     &[]*discordgo.MessageEmbed{embed},
+		Components: &components,
+	})
+
+	if err != nil {
+		fmt.Printf("Failed to update torrents response: %v\n", err)
+		// Fallback to responding with error
+		respondWithError(s, i, fmt.Sprintf("Failed to update page: %v", err))
+	}
 }
