@@ -7,6 +7,7 @@ import (
 
 	"github.com/bwmarrin/discordgo"
 	"github.com/raainshe/akira/internal/core"
+	"github.com/raainshe/akira/internal/qbittorrent"
 )
 
 // HandleDeleteCommand handles the /delete Discord command
@@ -24,9 +25,23 @@ func HandleDeleteCommand(s *discordgo.Session, i *discordgo.InteractionCreate, t
 		return
 	}
 
-	// Create select menu options for torrents
+	// Discord limits select menus to 25 options
+	const maxOptions = 25
+	totalTorrents := len(torrents)
+	
+	// Create select menu options for torrents (limited to 25)
 	var options []discordgo.SelectMenuOption
-	for i, torrent := range torrents {
+	var torrentsToShow []qbittorrent.Torrent
+	
+	if totalTorrents <= maxOptions {
+		// If we have 25 or fewer torrents, show them all
+		torrentsToShow = torrents
+	} else {
+		// If we have more than 25, show the first 25 and add pagination info
+		torrentsToShow = torrents[:maxOptions]
+	}
+
+	for i, torrent := range torrentsToShow {
 		// Truncate name if too long for Discord
 		name := torrent.Name
 		if len(name) > 100 {
@@ -49,12 +64,12 @@ func HandleDeleteCommand(s *discordgo.Session, i *discordgo.InteractionCreate, t
 		})
 	}
 
-	// Create the select menu
+	// Create the select menu with proper limits
 	selectMenu := discordgo.SelectMenu{
 		CustomID:    "delete_torrent_select",
 		Placeholder: "Select torrents to delete",
 		MinValues:   &[]int{1}[0],
-		MaxValues:   len(options),
+		MaxValues:   len(options), // This will now be ≤ 25
 		Options:     options,
 	}
 
@@ -64,10 +79,18 @@ func HandleDeleteCommand(s *discordgo.Session, i *discordgo.InteractionCreate, t
 	}
 
 	// Create embed explaining the process
-	embed := createInfoEmbed(
-		"🗑️ Delete Torrents",
-		"Select the torrents you want to delete from the list below.\n\n**Note:** This will permanently delete both the torrent and all downloaded files.",
-	)
+	var embedTitle string
+	var embedDescription string
+	
+	if totalTorrents <= maxOptions {
+		embedTitle = "🗑️ Delete Torrents"
+		embedDescription = fmt.Sprintf("Select the torrents you want to delete from the list below.\n\n**Note:** This will permanently delete both the torrent and all downloaded files.\n\n**Available:** %d torrent(s)", totalTorrents)
+	} else {
+		embedTitle = "🗑️ Delete Torrents (Page 1)"
+		embedDescription = fmt.Sprintf("Select the torrents you want to delete from the list below.\n\n**Note:** This will permanently delete both the torrent and all downloaded files.\n\n**Showing:** %d of %d torrent(s)\n*Only the first 25 torrents are shown due to Discord limits*", maxOptions, totalTorrents)
+	}
+
+	embed := createInfoEmbed(embedTitle, embedDescription)
 
 	// Send initial response with select menu
 	err = s.InteractionRespond(i.Interaction, &discordgo.InteractionResponse{
