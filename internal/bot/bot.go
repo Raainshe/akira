@@ -135,6 +135,8 @@ func (b *Bot) handleComponentInteraction(s *discordgo.Session, i *discordgo.Inte
 	data := i.MessageComponentData()
 
 	switch data.CustomID {
+	case "delete_category_select":
+		commands.HandleDeleteCategorySelect(s, i, b.torrentService, b.seedingService)
 	case "delete_torrent_select":
 		commands.HandleDeleteTorrentSelect(s, i, b.torrentService, b.seedingService)
 	case "delete_confirm":

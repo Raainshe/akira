@@ -12,65 +12,38 @@ import (
 
 // HandleDeleteCommand handles the /delete Discord command
 func HandleDeleteCommand(s *discordgo.Session, i *discordgo.InteractionCreate, torrentService *core.TorrentService, seedingService *core.SeedingService) {
-	// Get all available torrents
-	ctx := context.Background()
-	torrents, err := torrentService.GetTorrents(ctx, nil)
-	if err != nil {
-		respondWithError(s, i, fmt.Sprintf("Failed to get torrents: %v", err))
-		return
-	}
+	// Show category selection first
+	showCategorySelection(s, i)
+}
 
-	if len(torrents) == 0 {
-		respondWithError(s, i, "No torrents available to delete")
-		return
-	}
-
-	// Discord limits select menus to 25 options
-	const maxOptions = 25
-	totalTorrents := len(torrents)
-	
-	// Create select menu options for torrents (limited to 25)
-	var options []discordgo.SelectMenuOption
-	var torrentsToShow []qbittorrent.Torrent
-	
-	if totalTorrents <= maxOptions {
-		// If we have 25 or fewer torrents, show them all
-		torrentsToShow = torrents
-	} else {
-		// If we have more than 25, show the first 25 and add pagination info
-		torrentsToShow = torrents[:maxOptions]
-	}
-
-	for i, torrent := range torrentsToShow {
-		// Truncate name if too long for Discord
-		name := torrent.Name
-		if len(name) > 100 {
-			name = name[:97] + "..."
-		}
-
-		// Create a unique value that includes hash and index
-		value := fmt.Sprintf("%s|%d", torrent.Hash, i)
-
-		// Create description with size and state
-		description := fmt.Sprintf("%s | %s", formatBytes(int64(torrent.Size)), string(torrent.State))
-		if len(description) > 100 {
-			description = description[:97] + "..."
-		}
-
-		options = append(options, discordgo.SelectMenuOption{
-			Label:       name,
-			Value:       value,
-			Description: description,
-		})
-	}
-
-	// Create the select menu with proper limits
+// showCategorySelection shows the category selection menu
+func showCategorySelection(s *discordgo.Session, i *discordgo.InteractionCreate) {
+	// Create category selection menu
 	selectMenu := discordgo.SelectMenu{
-		CustomID:    "delete_torrent_select",
-		Placeholder: "Select torrents to delete",
-		MinValues:   &[]int{1}[0],
-		MaxValues:   len(options), // This will now be ≤ 25
-		Options:     options,
+		CustomID:    "delete_category_select",
+		Placeholder: "Select a category to delete torrents from",
+		Options: []discordgo.SelectMenuOption{
+			{
+				Label:       "🎬 Movies",
+				Value:       "movies",
+				Description: "Delete torrents from the movies category",
+			},
+			{
+				Label:       "📺 Series",
+				Value:       "series",
+				Description: "Delete torrents from the series category",
+			},
+			{
+				Label:       "🌸 Anime",
+				Value:       "anime",
+				Description: "Delete torrents from the anime category",
+			},
+			{
+				Label:       "🌐 All Categories",
+				Value:       "all",
+				Description: "Delete torrents from all categories",
+			},
+		},
 	}
 
 	// Create the action row
@@ -79,21 +52,13 @@ func HandleDeleteCommand(s *discordgo.Session, i *discordgo.InteractionCreate, t
 	}
 
 	// Create embed explaining the process
-	var embedTitle string
-	var embedDescription string
-	
-	if totalTorrents <= maxOptions {
-		embedTitle = "🗑️ Delete Torrents"
-		embedDescription = fmt.Sprintf("Select the torrents you want to delete from the list below.\n\n**Note:** This will permanently delete both the torrent and all downloaded files.\n\n**Available:** %d torrent(s)", totalTorrents)
-	} else {
-		embedTitle = "🗑️ Delete Torrents (Page 1)"
-		embedDescription = fmt.Sprintf("Select the torrents you want to delete from the list below.\n\n**Note:** This will permanently delete both the torrent and all downloaded files.\n\n**Showing:** %d of %d torrent(s)\n*Only the first 25 torrents are shown due to Discord limits*", maxOptions, totalTorrents)
-	}
+	embed := createInfoEmbed(
+		"🗑️ Delete Torrents - Category Selection",
+		"First, select which category of torrents you want to delete from.\n\n**Available Categories:**\n• 🎬 **Movies** - Movie torrents\n• 📺 **Series** - TV series torrents\n• 🌸 **Anime** - Anime torrents\n• 🌐 **All Categories** - All torrents\n\nAfter selecting a category, you'll see a list of torrents to choose from.",
+	)
 
-	embed := createInfoEmbed(embedTitle, embedDescription)
-
-	// Send initial response with select menu
-	err = s.InteractionRespond(i.Interaction, &discordgo.InteractionResponse{
+	// Send initial response with category selection
+	err := s.InteractionRespond(i.Interaction, &discordgo.InteractionResponse{
 		Type: discordgo.InteractionResponseChannelMessageWithSource,
 		Data: &discordgo.InteractionResponseData{
 			Embeds:     []*discordgo.MessageEmbed{embed},
@@ -102,7 +67,7 @@ func HandleDeleteCommand(s *discordgo.Session, i *discordgo.InteractionCreate, t
 	})
 
 	if err != nil {
-		fmt.Printf("Failed to send delete response: %v\n", err)
+		fmt.Printf("Failed to send category selection response: %v\n", err)
 	}
 }
 
@@ -301,5 +266,137 @@ func HandleDeleteCancel(s *discordgo.Session, i *discordgo.InteractionCreate, to
 
 	if err != nil {
 		fmt.Printf("Failed to send cancellation response: %v\n", err)
+	}
+}
+
+// HandleDeleteCategorySelect handles the category selection from the delete command
+func HandleDeleteCategorySelect(s *discordgo.Session, i *discordgo.InteractionCreate, torrentService *core.TorrentService, seedingService *core.SeedingService) {
+	// Parse the selected category
+	data := i.MessageComponentData()
+	if len(data.Values) == 0 {
+		respondWithError(s, i, "No category selected")
+		return
+	}
+
+	selectedCategory := data.Values[0]
+
+	// Validate category
+	validCategories := []string{"movies", "series", "anime", "all"}
+	isValid := false
+	for _, valid := range validCategories {
+		if selectedCategory == valid {
+			isValid = true
+			break
+		}
+	}
+
+	if !isValid {
+		respondWithError(s, i, fmt.Sprintf("Invalid category '%s'. Valid categories: %v", selectedCategory, validCategories))
+		return
+	}
+
+	// Get torrents based on selected category
+	ctx := context.Background()
+	var torrents []qbittorrent.Torrent
+	var err error
+
+	if selectedCategory == "all" {
+		// Get all torrents
+		torrents, err = torrentService.GetTorrents(ctx, nil)
+	} else {
+		// Get torrents by category
+		filter := &core.TorrentFilter{
+			Category: selectedCategory,
+		}
+		torrents, err = torrentService.GetTorrents(ctx, filter)
+	}
+
+	if err != nil {
+		respondWithError(s, i, fmt.Sprintf("Failed to get torrents: %v", err))
+		return
+	}
+
+	if len(torrents) == 0 {
+		respondWithError(s, i, fmt.Sprintf("No torrents found in category '%s'", selectedCategory))
+		return
+	}
+
+	// Discord limits select menus to 25 options
+	const maxOptions = 25
+	totalTorrents := len(torrents)
+	
+	// Create select menu options for torrents (limited to 25)
+	var options []discordgo.SelectMenuOption
+	var torrentsToShow []qbittorrent.Torrent
+	
+	if totalTorrents <= maxOptions {
+		// If we have 25 or fewer torrents, show them all
+		torrentsToShow = torrents
+	} else {
+		// If we have more than 25, show the first 25 and add pagination info
+		torrentsToShow = torrents[:maxOptions]
+	}
+
+	for i, torrent := range torrentsToShow {
+		// Truncate name if too long for Discord
+		name := torrent.Name
+		if len(name) > 100 {
+			name = name[:97] + "..."
+		}
+
+		// Create a unique value that includes hash and index
+		value := fmt.Sprintf("%s|%d", torrent.Hash, i)
+
+		// Create description with size and state
+		description := fmt.Sprintf("%s | %s", formatBytes(int64(torrent.Size)), string(torrent.State))
+		if len(description) > 100 {
+			description = description[:97] + "..."
+		}
+
+		options = append(options, discordgo.SelectMenuOption{
+			Label:       name,
+			Value:       value,
+			Description: description,
+		})
+	}
+
+	// Create the select menu with proper limits
+	selectMenu := discordgo.SelectMenu{
+		CustomID:    "delete_torrent_select",
+		Placeholder: "Select torrents to delete",
+		MinValues:   &[]int{1}[0],
+		MaxValues:   len(options), // This will now be ≤ 25
+		Options:     options,
+	}
+
+	// Create the action row
+	actionRow := discordgo.ActionsRow{
+		Components: []discordgo.MessageComponent{selectMenu},
+	}
+
+	// Create embed explaining the process
+	var embedTitle string
+	var embedDescription string
+	
+	if totalTorrents <= maxOptions {
+		embedTitle = fmt.Sprintf("🗑️ Delete Torrents - %s", strings.Title(selectedCategory))
+		embedDescription = fmt.Sprintf("Select the torrents you want to delete from the **%s** category.\n\n**Note:** This will permanently delete both the torrent and all downloaded files.\n\n**Available:** %d torrent(s)", strings.Title(selectedCategory), totalTorrents)
+	} else {
+		embedTitle = fmt.Sprintf("🗑️ Delete Torrents - %s (Page 1)", strings.Title(selectedCategory))
+		embedDescription = fmt.Sprintf("Select the torrents you want to delete from the **%s** category.\n\n**Note:** This will permanently delete both the torrent and all downloaded files.\n\n**Showing:** %d of %d torrent(s)\n*Only the first 25 torrents are shown due to Discord limits*", strings.Title(selectedCategory), maxOptions, totalTorrents)
+	}
+
+	embed := createInfoEmbed(embedTitle, embedDescription)
+
+	// Update the message with the torrent selection menu
+	_, err = s.InteractionResponseEdit(i.Interaction, &discordgo.WebhookEdit{
+		Embeds:     &[]*discordgo.MessageEmbed{embed},
+		Components: &[]discordgo.MessageComponent{actionRow},
+	})
+
+	if err != nil {
+		fmt.Printf("Failed to update delete response: %v\n", err)
+		// Fallback to responding with error
+		respondWithError(s, i, fmt.Sprintf("Failed to show torrents: %v", err))
 	}
 }
