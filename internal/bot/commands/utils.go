@@ -2,6 +2,7 @@ package commands
 
 import (
 	"fmt"
+	"regexp"
 	"strings"
 	"time"
 
@@ -144,29 +145,223 @@ func formatLogs(logs []string, level string) string {
 	maxChars := 3500 // Leave some buffer
 	currentChars := len(builder.String())
 
+	// Parse and format each log line
 	for i, log := range logs {
 		if i >= 20 { // Limit to 20 log lines
 			builder.WriteString(fmt.Sprintf("... and %d more lines\n", len(logs)-20))
 			break
 		}
 
-		// Truncate log line if it's too long
-		logLine := log
-		if len(logLine) > 200 {
-			logLine = logLine[:197] + "..."
+		// Parse the log line and format it cleanly
+		formattedLine := parseAndFormatLogLine(log)
+		
+		// Truncate if too long
+		if len(formattedLine) > 200 {
+			formattedLine = formattedLine[:197] + "..."
 		}
 
-		formattedLine := fmt.Sprintf("`%s`\n", logLine)
-		if currentChars+len(formattedLine) > maxChars {
+		// Check if adding this line would exceed Discord's limit
+		if currentChars+len(formattedLine)+1 > maxChars {
 			builder.WriteString(fmt.Sprintf("... and %d more lines\n", len(logs)-i))
 			break
 		}
 
-		builder.WriteString(formattedLine)
-		currentChars += len(formattedLine)
+		builder.WriteString(formattedLine + "\n")
+		currentChars += len(formattedLine) + 1
 	}
 
 	return builder.String()
+}
+
+// parseAndFormatLogLine parses a logrus JSON log line and formats it for Discord
+func parseAndFormatLogLine(logLine string) string {
+	// Remove ANSI color codes
+	cleanLine := removeANSICodes(logLine)
+	
+	// Try to parse as JSON first (structured logrus output)
+	if strings.Contains(cleanLine, `"level"`) && strings.Contains(cleanLine, `"msg"`) {
+		return parseStructuredLog(cleanLine)
+	}
+	
+	// If not structured, try to clean up common logrus text format
+	return cleanLogrusText(cleanLine)
+}
+
+// removeANSICodes removes ANSI escape sequences from the log line
+func removeANSICodes(line string) string {
+	// Remove ANSI color codes like [31m, [0m, etc.
+	var result strings.Builder
+	inEscape := false
+	
+	for i := 0; i < len(line); i++ {
+		if line[i] == '\x1b' && i+1 < len(line) && line[i+1] == '[' {
+			inEscape = true
+			i++ // Skip the [
+			continue
+		}
+		
+		if inEscape {
+			if line[i] == 'm' {
+				inEscape = false
+			}
+			continue
+		}
+		
+		result.WriteByte(line[i])
+	}
+	
+	return result.String()
+}
+
+// parseStructuredLog parses a structured logrus JSON log
+func parseStructuredLog(jsonLine string) string {
+	// Simple JSON parsing for common logrus fields
+	// We'll extract the key fields and format them nicely
+	
+	// Extract level
+	level := extractJSONField(jsonLine, "level")
+	if level == "" {
+		level = "INFO"
+	}
+	
+	// Extract message
+	msg := extractJSONField(jsonLine, "msg")
+	if msg == "" {
+		msg = "No message"
+	}
+	
+	// Extract time
+	time := extractJSONField(jsonLine, "time")
+	if time == "" {
+		time = "Unknown time"
+	}
+	
+	// Extract component
+	component := extractJSONField(jsonLine, "component")
+	
+	// Extract error if present
+	error := extractJSONField(jsonLine, "error")
+	
+	// Format the log line
+	var result strings.Builder
+	
+	// Add level emoji
+	switch strings.ToUpper(level) {
+	case "ERROR":
+		result.WriteString("❌ ")
+	case "WARN", "WARNING":
+		result.WriteString("⚠️ ")
+	case "INFO":
+		result.WriteString("ℹ️ ")
+	case "DEBUG":
+		result.WriteString("🔍 ")
+	default:
+		result.WriteString("📝 ")
+	}
+	
+	// Add level and time
+	result.WriteString(fmt.Sprintf("**%s** | %s", strings.ToUpper(level), time))
+	
+	// Add component if present
+	if component != "" {
+		result.WriteString(fmt.Sprintf(" | **%s**", component))
+	}
+	
+	result.WriteString("\n")
+	
+	// Add message
+	result.WriteString(fmt.Sprintf("**Message:** %s", msg))
+	
+	// Add error if present
+	if error != "" {
+		result.WriteString(fmt.Sprintf("\n**Error:** %s", error))
+	}
+	
+	return result.String()
+}
+
+// cleanLogrusText cleans up logrus text format logs
+func cleanLogrusText(line string) string {
+	// Remove common logrus prefixes and clean up the format
+	// Example: time="2025-09-02T21:50:57+02:00" level=error msg="Authentication failed"
+	
+	// Remove time prefix if present
+	if strings.HasPrefix(line, "time=") {
+		// Find the end of the time field
+		if idx := strings.Index(line, "level="); idx != -1 {
+			line = line[idx:]
+		}
+	}
+	
+	// Clean up level field
+	if strings.HasPrefix(line, "level=") {
+		// Extract level
+		levelEnd := strings.Index(line, " ")
+		if levelEnd != -1 {
+			level := line[6:levelEnd] // "level=" is 6 chars
+			line = line[levelEnd+1:]
+			
+			// Add level emoji
+			var levelEmoji string
+			switch strings.ToUpper(level) {
+			case "ERROR":
+				levelEmoji = "❌ "
+			case "WARN", "WARNING":
+				levelEmoji = "⚠️ "
+			case "INFO":
+				levelEmoji = "ℹ️ "
+			case "DEBUG":
+				levelEmoji = "🔍 "
+			default:
+				levelEmoji = "📝 "
+			}
+			
+			line = levelEmoji + "**" + strings.ToUpper(level) + "** " + line
+		}
+	}
+	
+	// Clean up msg field
+	if strings.HasPrefix(line, "msg=") {
+		line = strings.Replace(line, "msg=", "**Message:** ", 1)
+	}
+	
+	// Clean up component field
+	if strings.Contains(line, "component=") {
+		// Extract component
+		if idx := strings.Index(line, "component="); idx != -1 {
+			componentStart := idx + 10 // "component=" is 10 chars
+			componentEnd := strings.Index(line[componentStart:], " ")
+			if componentEnd == -1 {
+				componentEnd = len(line) - componentStart
+			}
+			component := line[componentStart : componentStart+componentEnd]
+			
+			// Replace component= with formatted version
+			line = strings.Replace(line, "component="+component, "**Component:** "+component, 1)
+		}
+	}
+	
+	// Clean up error field
+	if strings.Contains(line, "error=") {
+		line = strings.Replace(line, "error=", "**Error:** ", 1)
+	}
+	
+	return line
+}
+
+// extractJSONField extracts a field value from a JSON string
+func extractJSONField(json, field string) string {
+	// Simple JSON field extraction
+	fieldPattern := fmt.Sprintf(`"%s"\s*:\s*"([^"]*)"`, field)
+	
+	// Use regex to find the field value
+	re := regexp.MustCompile(fieldPattern)
+	matches := re.FindStringSubmatch(json)
+	if len(matches) > 1 {
+		return matches[1]
+	}
+	
+	return ""
 }
 
 // formatBytes formats bytes to human readable format
