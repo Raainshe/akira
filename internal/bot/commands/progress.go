@@ -35,8 +35,8 @@ func HandleProgressCommand(s *discordgo.Session, i *discordgo.InteractionCreate,
 		return
 	}
 
-	// Validate duration
-	if duration < 10 || duration > 300 {
+	// Validate duration - allow up to 24 hours for very large torrents
+	if duration < 10 || duration > 86400 {
 		duration = 60 // Default to 60 seconds
 	}
 
@@ -101,17 +101,27 @@ func updateProgressLive(s *discordgo.Session, i *discordgo.InteractionCreate, to
 	for {
 		select {
 		case <-ticker.C:
-			// Check if we should stop
+			// Check if we should stop based on duration
 			if time.Now().After(endTime) {
+				// Get torrent name for the final message
+				torrent, err := torrentService.FindTorrentByHash(ctx, hash)
+				torrentName := hash // fallback to hash if we can't get the name
+				if err == nil {
+					torrentName = torrent.Name
+				}
+
 				// Send final update
-				finalContent := "⏰ **Progress tracking completed**\n\nLive progress updates have stopped."
+				finalContent := fmt.Sprintf("⏰ **Progress tracking completed**\n\n"+
+					"Live progress updates have stopped after %d seconds.\n"+
+					"Use `/progress \"%s\"` to continue tracking if needed.",
+					duration, torrentName)
 				embed := createInfoEmbed("📊 Torrent Progress - Completed", finalContent)
 
-				_, err := s.InteractionResponseEdit(i.Interaction, &discordgo.WebhookEdit{
+				_, editErr := s.InteractionResponseEdit(i.Interaction, &discordgo.WebhookEdit{
 					Embeds: &[]*discordgo.MessageEmbed{embed},
 				})
-				if err != nil {
-					fmt.Printf("Failed to send final progress update: %v\n", err)
+				if editErr != nil {
+					fmt.Printf("Failed to send final progress update: %v\n", editErr)
 				}
 				return
 			}

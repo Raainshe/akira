@@ -114,31 +114,9 @@ func trackTorrentProgress(s *discordgo.Session, i *discordgo.InteractionCreate, 
 	ticker := time.NewTicker(5 * time.Second)
 	defer ticker.Stop()
 
-	// Track until completion or for maximum 30 minutes
-	maxDuration := 30 * time.Minute
-	endTime := startTime.Add(maxDuration)
-
 	for {
 		select {
 		case <-ticker.C:
-			// Check if we should stop
-			if time.Now().After(endTime) {
-				// Send final update
-				finalContent := fmt.Sprintf("⏰ **Progress tracking completed**\n\n"+
-					"**%s**\n\n"+
-					"Live progress updates have stopped after 30 minutes.\n"+
-					"Use `/progress \"%s\"` to continue tracking if needed.",
-					torrentName, torrentName)
-				embed := createInfoEmbed("📊 Torrent Progress - Completed", finalContent)
-
-				_, err := s.InteractionResponseEdit(i.Interaction, &discordgo.WebhookEdit{
-					Embeds: &[]*discordgo.MessageEmbed{embed},
-				})
-				if err != nil {
-					fmt.Printf("Failed to send final progress update: %v\n", err)
-				}
-				return
-			}
 
 			// Get updated torrent info
 			torrent, err := torrentService.FindTorrentByHash(ctx, hash)
