@@ -258,6 +258,9 @@ func (ss *SeedingService) CheckSeedingLimits(ctx context.Context) error {
 		torrentMap[torrent.Hash] = torrent
 	}
 
+	// First, check for new torrents that should be tracked
+	ss.checkForNewTorrents(ctx, torrentMap)
+
 	ss.dataMutex.Lock()
 	defer ss.dataMutex.Unlock()
 
@@ -569,4 +572,68 @@ func (ss *SeedingService) ForceStopSeeding(ctx context.Context, hashes []string)
 
 	ss.logger.WithField("count", len(hashes)).Info("Force stopped seeding for torrents")
 	return nil
+}
+
+// checkForNewTorrents automatically detects and starts tracking new torrents
+func (ss *SeedingService) checkForNewTorrents(ctx context.Context, torrentMap map[string]qbittorrent.Torrent) {
+	ss.dataMutex.RLock()
+	defer ss.dataMutex.RUnlock()
+
+	newTorrentsCount := 0
+
+	for hash, torrent := range torrentMap {
+		// Skip if already being tracked
+		if _, exists := ss.trackingData[hash]; exists {
+			continue
+		}
+
+		// Only track torrents that are downloading or seeding (not paused/error states)
+		if torrent.IsDownloading() || torrent.IsSeeding() {
+			// Start tracking this new torrent
+			go func(hash, name string) {
+				// Use a separate context to avoid blocking
+				trackCtx := context.Background()
+
+				// Start tracking
+				if err := ss.StartTracking(trackCtx, hash, name); err != nil {
+					ss.logger.WithError(err).WithField("hash", hash).Debug("Failed to start tracking new torrent")
+					return
+				}
+
+				// If the torrent is already completed, mark it as such
+				if torrent.IsCompleted() {
+					// Estimate download duration (we don't know the actual start time)
+					// Use a reasonable default based on torrent size
+					estimatedDuration := time.Duration(torrent.Size/(1024*1024)) * time.Second // 1 second per MB as rough estimate
+					if estimatedDuration < time.Minute {
+						estimatedDuration = time.Minute // Minimum 1 minute
+					}
+					if estimatedDuration > 24*time.Hour {
+						estimatedDuration = 24 * time.Hour // Maximum 24 hours
+					}
+
+					if err := ss.MarkTorrentCompleted(trackCtx, hash, estimatedDuration); err != nil {
+						ss.logger.WithError(err).WithField("hash", hash).Debug("Failed to mark new torrent as completed")
+					} else {
+						ss.logger.WithFields(map[string]interface{}{
+							"hash":               hash,
+							"name":               name,
+							"estimated_duration": estimatedDuration,
+						}).Info("Auto-started tracking for completed torrent")
+					}
+				} else {
+					ss.logger.WithFields(map[string]interface{}{
+						"hash": hash,
+						"name": name,
+					}).Info("Auto-started tracking for new torrent")
+				}
+			}(hash, torrent.Name)
+
+			newTorrentsCount++
+		}
+	}
+
+	if newTorrentsCount > 0 {
+		ss.logger.WithField("count", newTorrentsCount).Info("Auto-detected new torrents for tracking")
+	}
 }

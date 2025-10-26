@@ -389,9 +389,12 @@ func HandleDeleteCategorySelect(s *discordgo.Session, i *discordgo.InteractionCr
 	embed := createInfoEmbed(embedTitle, embedDescription)
 
 	// Update the message with the torrent selection menu
-	_, err = s.InteractionResponseEdit(i.Interaction, &discordgo.WebhookEdit{
-		Embeds:     &[]*discordgo.MessageEmbed{embed},
-		Components: &[]discordgo.MessageComponent{actionRow},
+	err = s.InteractionRespond(i.Interaction, &discordgo.InteractionResponse{
+		Type: discordgo.InteractionResponseUpdateMessage,
+		Data: &discordgo.InteractionResponseData{
+			Embeds:     []*discordgo.MessageEmbed{embed},
+			Components: []discordgo.MessageComponent{actionRow},
+		},
 	})
 
 	if err != nil {
