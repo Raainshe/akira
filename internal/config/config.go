@@ -3,6 +3,7 @@ package config
 import (
 	"fmt"
 	"os"
+	"path/filepath"
 	"strconv"
 	"strings"
 	"time"
@@ -83,10 +84,27 @@ type ProxyConfig struct {
 
 // LoadConfig loads configuration from environment variables
 func LoadConfig() (*Config, error) {
-	// Load .env file if it exists
-	if err := godotenv.Load(); err != nil {
+	// Try to load .env file from multiple locations
+	// First, try current working directory (for development)
+	envLoaded := false
+	if err := godotenv.Load(); err == nil {
+		envLoaded = true
+	} else {
+		// If not found in current directory, try executable's directory (for production/Windows)
+		execPath, err := os.Executable()
+		if err == nil {
+			execDir := filepath.Dir(execPath)
+			envPath := filepath.Join(execDir, ".env")
+			if err := godotenv.Load(envPath); err == nil {
+				envLoaded = true
+			}
+		}
+	}
+
+	// Only warn if .env wasn't found in either location
+	if !envLoaded {
 		// Don't fail if .env doesn't exist, just continue with system env vars
-		fmt.Printf("Warning: .env file not found, using system environment variables\n")
+		fmt.Printf("Warning: .env file not found in current directory or executable directory, using system environment variables\n")
 	}
 
 	config := &Config{}
