@@ -5,6 +5,7 @@ package core
 import (
 	"fmt"
 	"os"
+	"path/filepath"
 	"runtime"
 	"time"
 	"unsafe"
@@ -62,4 +63,13 @@ func (ds *DiskService) getDiskSpacePlatform(path string) (*DiskInfo, error) {
 		MountPoint:  path,
 		LastChecked: time.Now(),
 	}, nil
+}
+
+// getDriveIdentifierPlatform returns the drive letter for Windows paths (e.g., "C:\")
+func (ds *DiskService) getDriveIdentifierPlatform(path string) (string, error) {
+	volumeName := filepath.VolumeName(path)
+	if volumeName == "" {
+		return "", fmt.Errorf("could not determine drive for path: %s", path)
+	}
+	return volumeName, nil // Returns "C:\" format
 }

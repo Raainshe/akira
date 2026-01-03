@@ -24,10 +24,14 @@ profile.cov
 go.work
 go.work.sum
 
-# env file
+# env files
 .env
+akira.env
 
 # Editor/IDE
 # .idea/
 # .vscode/
+
+# Issue tracking documents
+ISSUES_TO_FIX.md
 

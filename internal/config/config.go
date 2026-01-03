@@ -84,49 +84,43 @@ type ProxyConfig struct {
 
 // LoadConfig loads configuration from environment variables
 func LoadConfig() (*Config, error) {
-	// Try to load .env file from multiple locations
-	// First, try current working directory (for development)
-	envLoaded := false
-	if err := godotenv.Load(); err == nil {
-		envLoaded = true
-	} else {
-		// If not found in current directory, try executable's directory (for production/Windows)
-		execPath, err := os.Executable()
-		if err == nil {
-			execDir := filepath.Dir(execPath)
-			envPath := filepath.Join(execDir, ".env")
-			if err := godotenv.Load(envPath); err == nil {
-				envLoaded = true
-			}
-		}
-	}
+	// Try to load config file from multiple locations
+	// Priority: akira.env (not hidden on Windows) > .env (for compatibility)
 
-	// Only warn if .env wasn't found in either location
-	if !envLoaded {
-		// Don't fail if .env doesn't exist, just continue with system env vars
-		fmt.Printf("Warning: .env file not found in current directory or executable directory, using system environment variables\n")
+	// Try current directory
+	_ = godotenv.Load("akira.env") // Try akira.env first (not hidden on Windows)
+	_ = godotenv.Load(".env")      // Fall back to .env for compatibility
+
+	// If not found in current directory, try executable's directory (for production/Windows)
+	execPath, err := os.Executable()
+	if err == nil {
+		execDir := filepath.Dir(execPath)
+		akiraEnvPath := filepath.Join(execDir, "akira.env")
+		envPath := filepath.Join(execDir, ".env")
+		_ = godotenv.Load(akiraEnvPath) // Try akira.env in executable directory
+		_ = godotenv.Load(envPath)      // Fall back to .env in executable directory
 	}
 
 	config := &Config{}
 
 	// Load Discord configuration
-	config.Discord.BotToken = getEnvOrDefault("DISCORD_BOT_TOKEN", "")
-	guildID := getEnvOrDefault("DISCORD_GUILD_ID", "")
+	config.Discord.BotToken = os.Getenv("DISCORD_BOT_TOKEN")
+	guildID := os.Getenv("DISCORD_GUILD_ID")
 	if guildID != "" {
 		config.Discord.GuildIDs = []string{guildID}
 	}
 
 	// Load qBittorrent configuration
-	config.QBittorrent.URL = getEnvOrDefault("QBITTORRENT_URL", "http://localhost:8080")
-	config.QBittorrent.Username = getEnvOrDefault("QBITTORRENT_USERNAME", "admin")
-	config.QBittorrent.Password = getEnvOrDefault("QBITTORRENT_PASSWORD", "")
+	config.QBittorrent.URL = os.Getenv("QBITTORRENT_URL")
+	config.QBittorrent.Username = os.Getenv("QBITTORRENT_USERNAME")
+	config.QBittorrent.Password = os.Getenv("QBITTORRENT_PASSWORD")
 	config.QBittorrent.RequestTimeout = parseDurationOrDefault("QBITTORRENT_REQUEST_TIMEOUT", 30*time.Second)
 
 	// Load save paths
-	config.QBittorrent.SavePaths.Default = getEnvOrDefault("QBITTORRENT_DEFAULT_SAVE_PATH", "/downloads/default")
-	config.QBittorrent.SavePaths.Series = getEnvOrDefault("QBITTORRENT_SERIES_SAVE_PATH", "")
-	config.QBittorrent.SavePaths.Movies = getEnvOrDefault("QBITTORRENT_MOVIES_SAVE_PATH", "")
-	config.QBittorrent.SavePaths.Anime = getEnvOrDefault("QBITTORRENT_ANIME_SAVE_PATH", "")
+	config.QBittorrent.SavePaths.Default = os.Getenv("QBITTORRENT_DEFAULT_SAVE_PATH")
+	config.QBittorrent.SavePaths.Series = os.Getenv("QBITTORRENT_SERIES_SAVE_PATH")
+	config.QBittorrent.SavePaths.Movies = os.Getenv("QBITTORRENT_MOVIES_SAVE_PATH")
+	config.QBittorrent.SavePaths.Anime = os.Getenv("QBITTORRENT_ANIME_SAVE_PATH")
 
 	// Use default path as fallback for category paths if not set
 	if config.QBittorrent.SavePaths.Series == "" {
@@ -139,7 +133,7 @@ func LoadConfig() (*Config, error) {
 		config.QBittorrent.SavePaths.Anime = config.QBittorrent.SavePaths.Default
 	}
 
-	config.QBittorrent.DiskSpaceCheckPath = getEnvOrDefault("DISK_SPACE_CHECK_PATH", "/")
+	config.QBittorrent.DiskSpaceCheckPath = os.Getenv("DISK_SPACE_CHECK_PATH")
 
 	// Load cache configuration
 	config.Cache.TorrentListTTL = parseDurationOrDefault("CACHE_TORRENT_LIST_TTL", 30*time.Second)
@@ -163,11 +157,11 @@ func LoadConfig() (*Config, error) {
 	config.Seeding.CheckInterval = parseDurationOrDefault("SEEDING_CHECK_INTERVAL", 5*time.Minute)
 	config.Seeding.TrackingDataFile = getEnvOrDefault("SEEDING_TRACKING_DATA_FILE", "seeding_tracking.json")
 
-	// Load proxy configuration (optional)
-	config.Proxy.Host = getEnvOrDefault("PROXY_HOST", "")
+	// Load proxy configuration
+	config.Proxy.Host = os.Getenv("PROXY_HOST")
 	config.Proxy.Port = parseIntOrDefault("PROXY_PORT", 0)
-	config.Proxy.Username = getEnvOrDefault("PROXY_USER", "")
-	config.Proxy.Password = getEnvOrDefault("PROXY_PASS", "")
+	config.Proxy.Username = os.Getenv("PROXY_USER")
+	config.Proxy.Password = os.Getenv("PROXY_PASS")
 	config.Proxy.Enabled = config.Proxy.Host != "" && config.Proxy.Port > 0
 
 	// Validate required configuration

@@ -139,8 +139,6 @@ func (b *Bot) handleComponentInteraction(s *discordgo.Session, i *discordgo.Inte
 		commands.HandleDeleteCategorySelect(s, i, b.torrentService, b.seedingService)
 	case "delete_torrent_select":
 		commands.HandleDeleteTorrentSelect(s, i, b.torrentService, b.seedingService)
-	case "delete_confirm":
-		commands.HandleDeleteConfirm(s, i, b.torrentService, b.seedingService)
 	case "delete_cancel":
 		commands.HandleDeleteCancel(s, i, b.torrentService, b.seedingService)
 	default:
@@ -160,7 +158,7 @@ func (b *Bot) RegisterCommands() error {
 	commands := []*discordgo.ApplicationCommand{
 		{
 			Name:        "torrents",
-			Description: "List all torrents with filters and pagination",
+			Description: "List all torrents with filters",
 			Options: []*discordgo.ApplicationCommandOption{
 				{
 					Type:        discordgo.ApplicationCommandOptionString,
@@ -173,12 +171,6 @@ func (b *Bot) RegisterCommands() error {
 						{Name: "Seeding", Value: "seeding"},
 						{Name: "Paused", Value: "paused"},
 					},
-				},
-				{
-					Type:        discordgo.ApplicationCommandOptionInteger,
-					Name:        "page",
-					Description: "Page number (default: 1)",
-					Required:    false,
 				},
 			},
 		},

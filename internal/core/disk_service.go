@@ -131,6 +131,9 @@ func (ds *DiskService) GetAllDiskSpaces(ctx context.Context) (*DiskSummary, erro
 	// Get all configured paths
 	paths := ds.getAllConfiguredPaths()
 
+	// Track unique drives/filesystems to avoid counting the same drive multiple times
+	seenDrives := make(map[string]*DiskInfo)
+
 	for _, path := range paths {
 		diskInfo, err := ds.GetDiskSpace(ctx, path)
 		if err != nil {
@@ -138,12 +141,25 @@ func (ds *DiskService) GetAllDiskSpaces(ctx context.Context) (*DiskSummary, erro
 			continue
 		}
 
+		// Always store individual path info
 		summary.Paths[path] = diskInfo
-		summary.TotalSpace += diskInfo.Total
-		summary.TotalUsed += diskInfo.Used
-		summary.TotalFree += diskInfo.Free
 
-		// Check health status
+		// Get drive identifier for this path
+		driveID, err := ds.getDriveIdentifier(path)
+		if err != nil {
+			ds.logger.WithError(err).WithField("path", path).Warn("Failed to get drive identifier, skipping from totals")
+			// Still check health status even if we can't identify the drive
+		} else {
+			// Only add to totals if we haven't seen this drive before
+			if _, seen := seenDrives[driveID]; !seen {
+				seenDrives[driveID] = diskInfo
+				summary.TotalSpace += diskInfo.Total
+				summary.TotalUsed += diskInfo.Used
+				summary.TotalFree += diskInfo.Free
+			}
+		}
+
+		// Check health status (always check, regardless of drive tracking)
 		health := ds.getDiskHealthStatus(diskInfo)
 		if ds.isWorseHealth(health, summary.WorstHealth) {
 			summary.WorstHealth = health
@@ -160,6 +176,7 @@ func (ds *DiskService) GetAllDiskSpaces(ctx context.Context) (*DiskSummary, erro
 
 	ds.logger.WithFields(map[string]interface{}{
 		"paths_checked":  len(summary.Paths),
+		"unique_drives":  len(seenDrives),
 		"total_space":    qbittorrent.FormatBytes(summary.TotalSpace),
 		"total_free":     qbittorrent.FormatBytes(summary.TotalFree),
 		"worst_health":   summary.WorstHealth,
@@ -220,6 +237,13 @@ func (ds *DiskService) FormatDiskInfo(diskInfo *DiskInfo) string {
 }
 
 // Platform-specific implementations are in disk_service_unix.go and disk_service_windows.go
+
+// getDriveIdentifier returns a unique identifier for the drive/filesystem containing the path
+// This is used to avoid counting the same drive multiple times when calculating totals
+// Platform-specific implementation in disk_service_unix.go and disk_service_windows.go
+func (ds *DiskService) getDriveIdentifier(path string) (string, error) {
+	return ds.getDriveIdentifierPlatform(path)
+}
 
 // Helper methods
 
