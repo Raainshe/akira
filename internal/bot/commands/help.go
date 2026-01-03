@@ -10,7 +10,7 @@ import (
 func HandleHelpCommand(s *discordgo.Session, i *discordgo.InteractionCreate) {
 	content := "**🤖 Akira Torrent Manager - Discord Bot Commands**\n\n" +
 		"**📋 Torrent Management:**\n" +
-		"• `/torrents [filter] [page]` - List torrents with filtering and pagination\n" +
+		"• `/torrents [filter]` - List all torrents with filtering\n" +
 		"• `/add <magnet> [category]` - Add a magnet link with **automatic live progress tracking**\n" +
 		"• `/delete` - **Interactive torrent deletion** - Select from list, confirm deletion\n" +
 		"• `/progress <torrent> [duration]` - Show live progress for a specific torrent\n\n" +

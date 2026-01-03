@@ -251,8 +251,10 @@ func HandleDeleteTorrentSelect(s *discordgo.Session, i *discordgo.InteractionCre
 	for _, value := range data.Values {
 		parts := strings.Split(value, "|")
 		if len(parts) >= 2 {
-			hash := parts[0]
-			selectedHashes = append(selectedHashes, hash)
+			hash := strings.TrimSpace(parts[0])
+			if hash != "" {
+				selectedHashes = append(selectedHashes, hash)
+			}
 		}
 	}
 
@@ -269,11 +271,47 @@ func HandleDeleteTorrentSelect(s *discordgo.Session, i *discordgo.InteractionCre
 		return
 	}
 
-	// Build confirmation message
-	var content strings.Builder
-	content.WriteString(fmt.Sprintf("**You are about to delete %d torrent(s):**\n\n", len(selectedHashes)))
+	// Create confirmation buttons
+	// Discord has a 100 character limit for custom IDs
+	// Limit the number of hashes to ensure we stay within the limit
+	// "delete_confirm|" = 15 chars, leaving 85 chars for hashes
+	const maxCustomIDLength = 100
+	const prefixLength = 15 // "delete_confirm|"
+	const maxHashLength = maxCustomIDLength - prefixLength
 
-	for _, hash := range selectedHashes {
+	// Build custom ID, limiting hashes if needed
+	customIDHashes := selectedHashes
+	customIDValue := strings.Join(selectedHashes, ",")
+	truncated := false
+	if len(customIDValue) > maxHashLength {
+		// Truncate to fit within limit
+		// Try to include as many hashes as possible
+		var truncatedHashes []string
+		currentLength := 0
+		for _, hash := range selectedHashes {
+			// Estimate: hash length + comma
+			estimatedLength := len(hash) + 1
+			if currentLength+estimatedLength > maxHashLength {
+				break
+			}
+			truncatedHashes = append(truncatedHashes, hash)
+			currentLength += estimatedLength
+		}
+		customIDHashes = truncatedHashes
+		customIDValue = strings.Join(truncatedHashes, ",")
+		truncated = len(selectedHashes) > len(truncatedHashes)
+	}
+
+	// Build confirmation message - only show torrents that will actually be deleted
+	var content strings.Builder
+	torrentsToDelete := customIDHashes // Use the hashes that will actually be deleted
+	content.WriteString(fmt.Sprintf("**You are about to delete %d torrent(s):**\n\n", len(torrentsToDelete)))
+
+	if truncated {
+		content.WriteString(fmt.Sprintf("⚠️ **Note:** %d torrent(s) selected, but only %d will be deleted due to Discord limits.\n\n", len(selectedHashes), len(torrentsToDelete)))
+	}
+
+	for _, hash := range torrentsToDelete {
 		for _, torrent := range allTorrents {
 			if torrent.Hash == hash {
 				selectedNames = append(selectedNames, torrent.Name)
@@ -290,12 +328,10 @@ func HandleDeleteTorrentSelect(s *discordgo.Session, i *discordgo.InteractionCre
 	content.WriteString("• Stop tracking in seeding service\n\n")
 	content.WriteString("**Are you sure you want to proceed?**")
 
-	// Create confirmation buttons
-	// Store only the hashes to stay within Discord's 100 character custom ID limit
 	confirmButton := discordgo.Button{
 		Label:    "✅ Yes, Delete Everything",
 		Style:    discordgo.DangerButton,
-		CustomID: fmt.Sprintf("delete_confirm|%s", strings.Join(selectedHashes, ",")),
+		CustomID: fmt.Sprintf("delete_confirm|%s", customIDValue),
 	}
 
 	cancelButton := discordgo.Button{
@@ -313,7 +349,7 @@ func HandleDeleteTorrentSelect(s *discordgo.Session, i *discordgo.InteractionCre
 
 	// Respond to the component interaction with the confirmation
 	err = s.InteractionRespond(i.Interaction, &discordgo.InteractionResponse{
-		Type: discordgo.InteractionResponseChannelMessageWithSource,
+		Type: discordgo.InteractionResponseUpdateMessage,
 		Data: &discordgo.InteractionResponseData{
 			Embeds:     []*discordgo.MessageEmbed{embed},
 			Components: []discordgo.MessageComponent{actionRow},
@@ -342,7 +378,7 @@ func HandleDeleteConfirm(s *discordgo.Session, i *discordgo.InteractionCreate, t
 		return
 	}
 
-	// Get torrent names for the success message
+	// Get torrent names for the success message BEFORE deletion
 	ctx := context.Background()
 	allTorrents, err := torrentService.GetTorrents(ctx, nil)
 	if err != nil {
@@ -363,14 +399,36 @@ func HandleDeleteConfirm(s *discordgo.Session, i *discordgo.InteractionCreate, t
 		}
 		// If we couldn't find the name, use a generic one
 		if !nameFound {
-			torrentNames = append(torrentNames, fmt.Sprintf("Torrent (%s...)", hash[:8]))
+			hashPrefix := hash
+			if len(hash) >= 8 {
+				hashPrefix = hash[:8]
+			}
+			torrentNames = append(torrentNames, fmt.Sprintf("Torrent (%s...)", hashPrefix))
 		}
 	}
 
-	// Delete torrents (always delete files)
+	// Acknowledge interaction immediately with deferred response to prevent token expiration
+	err = s.InteractionRespond(i.Interaction, &discordgo.InteractionResponse{
+		Type: discordgo.InteractionResponseDeferredChannelMessageWithSource,
+	})
+	if err != nil {
+		// If deferred response fails, try to send error and return
+		respondWithError(s, i, fmt.Sprintf("Failed to acknowledge deletion: %v", err))
+		return
+	}
+
+	// Now perform the deletion (interaction is already acknowledged)
 	err = torrentService.DeleteTorrents(ctx, selectedHashes, true)
 	if err != nil {
-		respondWithError(s, i, fmt.Sprintf("Failed to delete torrents: %v", err))
+		// Try to update the deferred response with error
+		_, editErr := s.InteractionResponseEdit(i.Interaction, &discordgo.WebhookEdit{
+			Embeds: &[]*discordgo.MessageEmbed{createErrorEmbed("❌ Deletion Failed", fmt.Sprintf("Failed to delete torrents: %v", err))},
+		})
+		if editErr != nil {
+			// If edit fails, send follow-up message as last resort
+			errorEmbed := createErrorEmbed("❌ Deletion Failed", fmt.Sprintf("Failed to delete torrents: %v", err))
+			_, _ = s.ChannelMessageSendEmbed(i.ChannelID, errorEmbed)
+		}
 		return
 	}
 
@@ -401,17 +459,19 @@ func HandleDeleteConfirm(s *discordgo.Session, i *discordgo.InteractionCreate, t
 
 	embed := createSuccessEmbed("🗑️ Torrents Deleted", content.String())
 
-	// Respond to the component interaction with success and remove components
-	err = s.InteractionRespond(i.Interaction, &discordgo.InteractionResponse{
-		Type: discordgo.InteractionResponseUpdateMessage,
-		Data: &discordgo.InteractionResponseData{
-			Embeds:     []*discordgo.MessageEmbed{embed},
-			Components: []discordgo.MessageComponent{},
-		},
+	// Update the deferred response with success
+	_, err = s.InteractionResponseEdit(i.Interaction, &discordgo.WebhookEdit{
+		Embeds:     &[]*discordgo.MessageEmbed{embed},
+		Components: &[]discordgo.MessageComponent{},
 	})
 
 	if err != nil {
-		fmt.Printf("Failed to send success response: %v\n", err)
+		// If edit fails (interaction expired), send follow-up message as fallback
+		fmt.Printf("Failed to update deletion response, sending follow-up: %v\n", err)
+		_, followErr := s.ChannelMessageSendEmbed(i.ChannelID, embed)
+		if followErr != nil {
+			fmt.Printf("Failed to send follow-up message: %v\n", followErr)
+		}
 	}
 }
 

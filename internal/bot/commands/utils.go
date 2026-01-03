@@ -46,7 +46,7 @@ func createWarningEmbed(title, description string) *discordgo.MessageEmbed {
 	return createEmbed(title, description, 0xFFA500) // Orange
 }
 
-// formatTorrentList formats torrents for Discord display
+// formatTorrentList formats torrents for Discord display (legacy - with pagination)
 func formatTorrentList(torrents []qbittorrent.Torrent, page, totalPages int) string {
 	if len(torrents) == 0 {
 		return "No torrents found."
@@ -85,6 +85,92 @@ func formatTorrentList(torrents []qbittorrent.Torrent, page, totalPages int) str
 	}
 
 	return builder.String()
+}
+
+// formatTorrentListAll formats all torrents for Discord display (no pagination)
+func formatTorrentListAll(torrents []qbittorrent.Torrent) string {
+	if len(torrents) == 0 {
+		return "No torrents found."
+	}
+
+	var builder strings.Builder
+	builder.WriteString(fmt.Sprintf("**Total: %d torrent(s)**\n\n", len(torrents)))
+
+	for i, torrent := range torrents {
+		// Truncate name if too long
+		name := torrent.Name
+		if len(name) > 50 {
+			name = name[:47] + "..."
+		}
+
+		// Format progress
+		progress := "0%"
+		if torrent.Size > 0 {
+			progress = fmt.Sprintf("%.1f%%", float64(torrent.Downloaded)/float64(torrent.Size)*100)
+		}
+
+		// Format speed
+		speed := "0 B/s"
+		if torrent.Dlspeed > 0 {
+			speed = formatBytes(torrent.Dlspeed) + "/s"
+		} else if torrent.Upspeed > 0 {
+			speed = formatBytes(torrent.Upspeed) + "/s"
+		}
+
+		// Format state with emoji
+		state := getStateEmoji(torrent.State) + " " + string(torrent.State)
+
+		builder.WriteString(fmt.Sprintf("**%d.** %s\n", i+1, name))
+		builder.WriteString(fmt.Sprintf("   %s | %s | %s\n", state, progress, speed))
+
+		// Safe hash substring
+		hashDisplay := torrent.Hash
+		if len(hashDisplay) >= 8 {
+			hashDisplay = hashDisplay[:8]
+		}
+		builder.WriteString(fmt.Sprintf("   Size: %s | Hash: `%s`\n\n", formatBytes(torrent.Size), hashDisplay))
+	}
+
+	return builder.String()
+}
+
+// splitContent splits content into chunks that fit within maxLength
+// Tries to split at newlines to avoid breaking in the middle of a line
+func splitContent(content string, maxLength int) []string {
+	if len(content) <= maxLength {
+		return []string{content}
+	}
+
+	var chunks []string
+	lines := strings.Split(content, "\n")
+	var currentChunk strings.Builder
+
+	for _, line := range lines {
+		// Check if adding this line would exceed the limit
+		potentialLength := currentChunk.Len() + len(line) + 1 // +1 for newline
+		if potentialLength > maxLength && currentChunk.Len() > 0 {
+			// Save current chunk and start new one
+			chunks = append(chunks, currentChunk.String())
+			currentChunk.Reset()
+		}
+
+		// If a single line is too long, truncate it
+		if len(line) > maxLength {
+			line = line[:maxLength-3] + "..."
+		}
+
+		if currentChunk.Len() > 0 {
+			currentChunk.WriteString("\n")
+		}
+		currentChunk.WriteString(line)
+	}
+
+	// Add the last chunk
+	if currentChunk.Len() > 0 {
+		chunks = append(chunks, currentChunk.String())
+	}
+
+	return chunks
 }
 
 // formatDiskUsage formats disk usage for Discord display

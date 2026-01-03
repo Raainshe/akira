@@ -103,12 +103,18 @@ make docker-down
 2. **Configure Environment**
    ```bash
    # Linux/macOS
+   cp .env.example akira.env
+   # or
    cp .env.example .env
    
-   # Windows
+   # Windows (recommended: use akira.env - not hidden)
+   copy .env.example akira.env
+   # or
    copy .env.example .env
    ```
-   Edit `.env` with your Discord token and qBittorrent credentials
+   Edit `akira.env` (or `.env`) with your Discord token and qBittorrent credentials
+   
+   **Note:** On Windows Server, `akira.env` is recommended as it's not a hidden file and easier to locate.
 
 3. **Start the Bot**
    ```bash

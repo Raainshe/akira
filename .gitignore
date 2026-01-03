@@ -24,7 +24,7 @@ profile.cov
 go.work
 go.work.sum
 
-# env file
+# env files
 .env
 akira.env
 
@@ -40,3 +40,6 @@ build-errors.log
 # .vscode/
 /testdata
 /scripts
+
+# Issue tracking documents
+ISSUES_TO_FIX.md

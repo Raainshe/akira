@@ -159,7 +159,7 @@ func (b *Bot) RegisterCommands() error {
 	commands := []*discordgo.ApplicationCommand{
 		{
 			Name:        "torrents",
-			Description: "List all torrents with filters and pagination",
+			Description: "List all torrents with filters",
 			Options: []*discordgo.ApplicationCommandOption{
 				{
 					Type:        discordgo.ApplicationCommandOptionString,
@@ -172,12 +172,6 @@ func (b *Bot) RegisterCommands() error {
 						{Name: "Seeding", Value: "seeding"},
 						{Name: "Paused", Value: "paused"},
 					},
-				},
-				{
-					Type:        discordgo.ApplicationCommandOptionInteger,
-					Name:        "page",
-					Description: "Page number (default: 1)",
-					Required:    false,
 				},
 			},
 		},
