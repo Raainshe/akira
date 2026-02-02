@@ -12,6 +12,7 @@ import (
 )
 
 const deletePageSize = 25
+const deleteMaxSelection = 2 // Discord custom ID limit (100 chars)
 
 var validDeleteCategories = []string{"movies", "series", "anime", "all"}
 
@@ -131,11 +132,15 @@ func showDeleteTorrentPage(s *discordgo.Session, i *discordgo.InteractionCreate,
 	}
 
 	minValues := 1
+	maxSelectable := len(options)
+	if maxSelectable > deleteMaxSelection {
+		maxSelectable = deleteMaxSelection
+	}
 	selectMenu := discordgo.SelectMenu{
 		CustomID:    "delete_torrent_select",
-		Placeholder: "Select torrents to delete",
+		Placeholder: fmt.Sprintf("Select torrents to delete (max %d)", deleteMaxSelection),
 		MinValues:   &minValues,
-		MaxValues:   len(options),
+		MaxValues:   maxSelectable,
 		Options:     options,
 	}
 
@@ -153,14 +158,14 @@ func showDeleteTorrentPage(s *discordgo.Session, i *discordgo.InteractionCreate,
 	if totalPages > 1 {
 		embedTitle = fmt.Sprintf("🗑️ Delete Torrents - %s (Page %d/%d)", categoryTitle, page, totalPages)
 		embedDescription = fmt.Sprintf(
-			"Select the torrents you want to delete from the **%s** category.\n\n**Note:** This will permanently delete both the torrent and all downloaded files.\n\n**Showing:** %d-%d of %d torrent(s)\nUse the buttons below to navigate pages.",
-			categoryTitle, offset+1, end, totalTorrents,
+			"Select the torrents you want to delete from the **%s** category.\n\n**Note:** This will permanently delete both the torrent and all downloaded files.\n\n**Showing:** %d-%d of %d torrent(s)\nUse the buttons below to navigate pages.\n*You can select up to %d torrent(s) at a time*",
+			categoryTitle, offset+1, end, totalTorrents, deleteMaxSelection,
 		)
 	} else {
 		embedTitle = fmt.Sprintf("🗑️ Delete Torrents - %s", categoryTitle)
 		embedDescription = fmt.Sprintf(
-			"Select the torrents you want to delete from the **%s** category.\n\n**Note:** This will permanently delete both the torrent and all downloaded files.\n\n**Available:** %d torrent(s)",
-			categoryTitle, totalTorrents,
+			"Select the torrents you want to delete from the **%s** category.\n\n**Note:** This will permanently delete both the torrent and all downloaded files.\n\n**Available:** %d torrent(s)\n*You can select up to %d torrent(s) at a time*",
+			categoryTitle, totalTorrents, deleteMaxSelection,
 		)
 	}
 
@@ -371,28 +376,47 @@ func HandleDeleteConfirm(s *discordgo.Session, i *discordgo.InteractionCreate, t
 		return
 	}
 
-	// Parse the comma-separated hashes
-	selectedHashes := strings.Split(parts[1], ",")
+	// Parse the comma-separated hashes and trim whitespace
+	hashStrings := strings.Split(parts[1], ",")
+	var selectedHashes []string
+	for _, hashStr := range hashStrings {
+		hash := strings.TrimSpace(hashStr)
+		if hash != "" {
+			selectedHashes = append(selectedHashes, hash)
+		}
+	}
+
 	if len(selectedHashes) == 0 {
 		respondWithError(s, i, "No torrents selected for deletion")
 		return
 	}
 
-	// Get torrent names for the success message BEFORE deletion
+	// Get torrent names and states for the success message BEFORE deletion
 	ctx := context.Background()
 	allTorrents, err := torrentService.GetTorrents(ctx, nil)
 	if err != nil {
-		// If we can't get torrent names, we'll still proceed with deletion
+		// If we can't get torrent details for names, we'll still proceed with deletion
 		// but use generic names in the response
 		fmt.Printf("Warning: Failed to get torrent details for names: %v\n", err)
 	}
 
-	var torrentNames []string
+	type torrentInfo struct {
+		name  string
+		state string
+		hash  string
+	}
+	torrentInfoMap := make(map[string]*torrentInfo)
+
 	for _, hash := range selectedHashes {
 		nameFound := false
 		for _, torrent := range allTorrents {
-			if torrent.Hash == hash {
-				torrentNames = append(torrentNames, torrent.Name)
+			// Case-insensitive hash comparison
+			if strings.EqualFold(torrent.Hash, hash) {
+				torrentInfoMap[hash] = &torrentInfo{
+					name:  torrent.Name,
+					state: string(torrent.State),
+					hash:  torrent.Hash, // Use the actual hash from qBittorrent
+				}
 				nameFound = true
 				break
 			}
@@ -403,7 +427,11 @@ func HandleDeleteConfirm(s *discordgo.Session, i *discordgo.InteractionCreate, t
 			if len(hash) >= 8 {
 				hashPrefix = hash[:8]
 			}
-			torrentNames = append(torrentNames, fmt.Sprintf("Torrent (%s...)", hashPrefix))
+			torrentInfoMap[hash] = &torrentInfo{
+				name:  fmt.Sprintf("Torrent (%s...)", hashPrefix),
+				state: "unknown",
+				hash:  hash,
+			}
 		}
 	}
 
@@ -417,8 +445,53 @@ func HandleDeleteConfirm(s *discordgo.Session, i *discordgo.InteractionCreate, t
 		return
 	}
 
+	// Normalize hashes to use the actual hash from qBittorrent (case-sensitive)
+	// Also create a reverse map from normalized hash to original hash for lookups
+	normalizedHashes := make([]string, 0, len(selectedHashes))
+	normalizedToOriginal := make(map[string]string)
+	for _, originalHash := range selectedHashes {
+		if info, exists := torrentInfoMap[originalHash]; exists {
+			normalizedHash := info.hash
+			normalizedHashes = append(normalizedHashes, normalizedHash)
+			normalizedToOriginal[normalizedHash] = originalHash
+		} else {
+			normalizedHashes = append(normalizedHashes, originalHash)
+			normalizedToOriginal[originalHash] = originalHash
+		}
+	}
+
+	// Pause torrents before deletion to ensure they can be deleted (some states may prevent deletion)
+	// Pause individually so one failure doesn't stop others
+	// Only pause torrents that we've verified exist in torrentInfoMap
+	var pausedCount int
+	var pauseFailedHashes []string
+	for _, normalizedHash := range normalizedHashes {
+		originalHash := normalizedToOriginal[normalizedHash]
+		if info, exists := torrentInfoMap[originalHash]; exists {
+			// Pause if torrent is in an active state (downloading, seeding, etc.)
+			state := strings.ToLower(info.state)
+			if state != "pauseddl" && state != "pausedup" && state != "error" {
+				// Pause individually to avoid batch failures
+				pauseErr := torrentService.PauseTorrents(ctx, []string{normalizedHash})
+				if pauseErr != nil {
+					fmt.Printf("Warning: Failed to pause torrent %s (%s) before deletion: %v\n", normalizedHash[:8], info.name, pauseErr)
+					pauseFailedHashes = append(pauseFailedHashes, normalizedHash)
+				} else {
+					pausedCount++
+				}
+			}
+		}
+	}
+
+	if pausedCount > 0 {
+		fmt.Printf("Successfully paused %d torrent(s) before deletion\n", pausedCount)
+	}
+	if len(pauseFailedHashes) > 0 {
+		fmt.Printf("Warning: Failed to pause %d torrent(s) before deletion, will attempt deletion anyway\n", len(pauseFailedHashes))
+	}
+
 	// Now perform the deletion (interaction is already acknowledged)
-	err = torrentService.DeleteTorrents(ctx, selectedHashes, true)
+	err = torrentService.DeleteTorrents(ctx, normalizedHashes, true)
 	if err != nil {
 		// Try to update the deferred response with error
 		_, editErr := s.InteractionResponseEdit(i.Interaction, &discordgo.WebhookEdit{
@@ -432,9 +505,59 @@ func HandleDeleteConfirm(s *discordgo.Session, i *discordgo.InteractionCreate, t
 		return
 	}
 
-	// Stop tracking for seeding service
+	// Verify which torrents were actually deleted by checking if they still exist
+	remainingTorrents, verifyErr := torrentService.GetTorrents(ctx, nil)
+	if verifyErr != nil {
+		fmt.Printf("Warning: Failed to verify deletion: %v\n", verifyErr)
+	}
+
+	// Create a map of remaining torrent hashes for quick lookup
+	remainingHashes := make(map[string]bool)
+	if remainingTorrents != nil {
+		for _, torrent := range remainingTorrents {
+			remainingHashes[strings.ToLower(torrent.Hash)] = true
+		}
+	}
+
+	// Determine which torrents were successfully deleted and which failed
+	var deletedHashes []string
+	var failedHashes []string
+	var deletedNames []string
+	var failedNames []string
+
+	for _, normalizedHash := range normalizedHashes {
+		hashLower := strings.ToLower(normalizedHash)
+		originalHash := normalizedToOriginal[normalizedHash]
+		if remainingHashes[hashLower] {
+			// Torrent still exists - deletion failed
+			failedHashes = append(failedHashes, normalizedHash)
+			if info, exists := torrentInfoMap[originalHash]; exists {
+				failedNames = append(failedNames, info.name)
+			} else {
+				hashPrefix := normalizedHash
+				if len(normalizedHash) >= 8 {
+					hashPrefix = normalizedHash[:8]
+				}
+				failedNames = append(failedNames, fmt.Sprintf("Torrent (%s...)", hashPrefix))
+			}
+		} else {
+			// Torrent no longer exists - deletion succeeded
+			deletedHashes = append(deletedHashes, normalizedHash)
+			if info, exists := torrentInfoMap[originalHash]; exists {
+				deletedNames = append(deletedNames, info.name)
+			} else {
+				hashPrefix := normalizedHash
+				if len(normalizedHash) >= 8 {
+					hashPrefix = normalizedHash[:8]
+				}
+				deletedNames = append(deletedNames, fmt.Sprintf("Torrent (%s...)", hashPrefix))
+			}
+		}
+	}
+
+	// Stop tracking for seeding service (only for successfully deleted torrents)
 	if seedingService != nil {
-		for _, hash := range selectedHashes {
+		for _, hash := range deletedHashes {
 			err = seedingService.StopTracking(hash)
 			if err != nil {
 				// Log error but don't fail the command
@@ -443,21 +566,63 @@ func HandleDeleteConfirm(s *discordgo.Session, i *discordgo.InteractionCreate, t
 		}
 	}
 
-	// Create success response using the names we collected before deletion
+	// Create response based on results
 	var content strings.Builder
-	content.WriteString(fmt.Sprintf("✅ **Successfully Deleted %d Torrent(s)**\n\n", len(selectedHashes)))
-	content.WriteString("🗑️ **Files were also deleted**\n\n")
-	content.WriteString("**Deleted Torrents:**\n")
+	if len(deletedHashes) > 0 && len(failedHashes) == 0 {
+		// All succeeded
+		content.WriteString(fmt.Sprintf("✅ **Successfully Deleted %d Torrent(s)**\n\n", len(deletedHashes)))
+		content.WriteString("🗑️ **Files were also deleted**\n\n")
+		content.WriteString("**Deleted Torrents:**\n")
 
-	for i, name := range torrentNames {
-		if i >= 10 { // Limit to 10 names
-			content.WriteString(fmt.Sprintf("... and %d more\n", len(torrentNames)-10))
-			break
+		for i, name := range deletedNames {
+			if i >= 10 { // Limit to 10 names
+				content.WriteString(fmt.Sprintf("... and %d more\n", len(deletedNames)-10))
+				break
+			}
+			content.WriteString(fmt.Sprintf("• %s\n", name))
 		}
-		content.WriteString(fmt.Sprintf("• %s\n", name))
+	} else if len(deletedHashes) > 0 && len(failedHashes) > 0 {
+		// Partial success
+		content.WriteString(fmt.Sprintf("⚠️ **Partial Deletion: %d succeeded, %d failed**\n\n", len(deletedHashes), len(failedHashes)))
+		content.WriteString("✅ **Successfully Deleted:**\n")
+		for i, name := range deletedNames {
+			if i >= 5 {
+				content.WriteString(fmt.Sprintf("... and %d more\n", len(deletedNames)-5))
+				break
+			}
+			content.WriteString(fmt.Sprintf("• %s\n", name))
+		}
+		content.WriteString("\n❌ **Failed to Delete:**\n")
+		for i, name := range failedNames {
+			if i >= 5 {
+				content.WriteString(fmt.Sprintf("... and %d more\n", len(failedNames)-5))
+				break
+			}
+			content.WriteString(fmt.Sprintf("• %s\n", name))
+		}
+		content.WriteString("\n*Some torrents may still be active or in a state that prevents deletion.*")
+	} else {
+		// All failed
+		content.WriteString(fmt.Sprintf("❌ **Failed to Delete %d Torrent(s)**\n\n", len(failedHashes)))
+		content.WriteString("**Failed Torrents:**\n")
+		for i, name := range failedNames {
+			if i >= 10 {
+				content.WriteString(fmt.Sprintf("... and %d more\n", len(failedNames)-10))
+				break
+			}
+			content.WriteString(fmt.Sprintf("• %s\n", name))
+		}
+		content.WriteString("\n*Torrents may be in a state that prevents deletion. Try pausing them first.*")
 	}
 
-	embed := createSuccessEmbed("🗑️ Torrents Deleted", content.String())
+	var embed *discordgo.MessageEmbed
+	if len(failedHashes) == 0 {
+		embed = createSuccessEmbed("🗑️ Torrents Deleted", content.String())
+	} else if len(deletedHashes) > 0 {
+		embed = createWarningEmbed("⚠️ Partial Deletion", content.String())
+	} else {
+		embed = createErrorEmbed("❌ Deletion Failed", content.String())
+	}
 
 	// Update the deferred response with success
 	_, err = s.InteractionResponseEdit(i.Interaction, &discordgo.WebhookEdit{
