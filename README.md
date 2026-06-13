@@ -204,12 +204,18 @@ akira restart
 ```
 
 ### Discord Commands
-- `/torrent add <magnet>` - Add a new torrent
-- `/torrent list` - List all torrents
-- `/torrent pause <id>` - Pause a torrent
-- `/torrent resume <id>` - Resume a torrent
-- `/torrent delete <id>` - Delete a torrent
-- `/status` - Show system status
+
+Run these slash commands in Discord (restart the daemon after updates to refresh the command list):
+
+- `/torrents [filter]` — List torrents (all, downloading, seeding, paused)
+- `/add magnet [category]` — Add a magnet link; live progress updates in the reply until complete
+- `/delete` — Interactive select and confirm to remove torrents and their files
+- `/recategorize` — Move a torrent to another category and save path
+- `/disk` — Disk usage for configured download paths
+- `/logs [level] [lines]` — Recent bot activity log
+- `/help` — Command reference
+
+Seeding time limits are enforced automatically by the daemon (download time × `SEEDING_TIME_MULTIPLIER`); no Discord command is needed.
 
 ## Configuration
 

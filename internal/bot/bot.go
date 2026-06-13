@@ -113,16 +113,12 @@ func (b *Bot) handleSlashCommand(s *discordgo.Session, i *discordgo.InteractionC
 		commands.HandleAddCommand(s, i, b.torrentService, b.seedingService, b.config)
 	case "delete":
 		commands.HandleDeleteCommand(s, i, b.torrentService, b.seedingService)
-	case "progress":
-		commands.HandleProgressCommand(s, i, b.torrentService)
+	case "recategorize":
+		commands.HandleRecategorizeCommand(s, i, b.torrentService, b.config)
 	case "disk":
 		commands.HandleDiskCommand(s, i, b.diskService)
 	case "logs":
 		commands.HandleLogsCommand(s, i)
-	case "seeding-status":
-		commands.HandleSeedingStatusCommand(s, i, b.seedingService)
-	case "stop-seeding":
-		commands.HandleStopSeedingCommand(s, i, b.seedingService)
 	case "help":
 		commands.HandleHelpCommand(s, i)
 	default:
@@ -141,11 +137,21 @@ func (b *Bot) handleComponentInteraction(s *discordgo.Session, i *discordgo.Inte
 		commands.HandleDeleteTorrentSelect(s, i, b.torrentService, b.seedingService)
 	case "delete_cancel":
 		commands.HandleDeleteCancel(s, i, b.torrentService, b.seedingService)
+	case "recategorize_torrent_select":
+		commands.HandleRecategorizeTorrentSelect(s, i, b.torrentService)
+	case "recategorize_cancel":
+		commands.HandleRecategorizeCancel(s, i)
 	default:
 		if strings.HasPrefix(data.CustomID, "delete_page|") {
 			commands.HandleDeletePagination(s, i, b.torrentService, b.seedingService)
 		} else if strings.HasPrefix(data.CustomID, "delete_confirm|") {
 			commands.HandleDeleteConfirm(s, i, b.torrentService, b.seedingService)
+		} else if strings.HasPrefix(data.CustomID, "recategorize_page|") {
+			commands.HandleRecategorizePagination(s, i, b.torrentService)
+		} else if strings.HasPrefix(data.CustomID, "recategorize_category_select|") {
+			commands.HandleRecategorizeCategorySelect(s, i, b.torrentService, b.config)
+		} else if strings.HasPrefix(data.CustomID, "recategorize_confirm|") {
+			commands.HandleRecategorizeConfirm(s, i, b.torrentService)
 		} else {
 			b.logger.Warn("Unknown component interaction", map[string]interface{}{
 				"custom_id": data.CustomID,
@@ -177,7 +183,7 @@ func (b *Bot) RegisterCommands() error {
 		},
 		{
 			Name:        "add",
-			Description: "Add a magnet link or torrent file",
+			Description: "Add a magnet link with category and live progress updates",
 			Options: []*discordgo.ApplicationCommandOption{
 				{
 					Type:        discordgo.ApplicationCommandOptionString,
@@ -202,6 +208,10 @@ func (b *Bot) RegisterCommands() error {
 		{
 			Name:        "delete",
 			Description: "Delete torrents - select from available torrents",
+		},
+		{
+			Name:        "recategorize",
+			Description: "Move a torrent to a different category and save path",
 		},
 		{
 			Name:        "disk",
@@ -229,40 +239,6 @@ func (b *Bot) RegisterCommands() error {
 					Name:        "lines",
 					Description: "Number of log lines to show (default: 10)",
 					Required:    false,
-				},
-			},
-		},
-		{
-			Name:        "seeding-status",
-			Description: "Show seeding status and statistics",
-		},
-		{
-			Name:        "progress",
-			Description: "Show live progress for a specific torrent",
-			Options: []*discordgo.ApplicationCommandOption{
-				{
-					Type:        discordgo.ApplicationCommandOptionString,
-					Name:        "torrent",
-					Description: "Torrent name or hash",
-					Required:    true,
-				},
-				{
-					Type:        discordgo.ApplicationCommandOptionInteger,
-					Name:        "duration",
-					Description: "Duration to track progress in seconds (10-300, default: 60)",
-					Required:    false,
-				},
-			},
-		},
-		{
-			Name:        "stop-seeding",
-			Description: "Stop seeding for a specific torrent",
-			Options: []*discordgo.ApplicationCommandOption{
-				{
-					Type:        discordgo.ApplicationCommandOptionString,
-					Name:        "torrent",
-					Description: "Torrent name or hash",
-					Required:    true,
 				},
 			},
 		},
