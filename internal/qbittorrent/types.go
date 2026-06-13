@@ -207,6 +207,14 @@ type DiskSpace struct {
 	Free  int64 `json:"free"`  // Free space in bytes
 }
 
+// AddTorrentResponse is the JSON body returned by qBittorrent 5+ /api/v2/torrents/add.
+type AddTorrentResponse struct {
+	AddedTorrentIDs []string `json:"added_torrent_ids"`
+	SuccessCount    int      `json:"success_count"`
+	PendingCount    int      `json:"pending_count"`
+	FailureCount    int      `json:"failure_count"`
+}
+
 // APIError represents an error from the qBittorrent API
 type APIError struct {
 	Code    int    `json:"code"`
