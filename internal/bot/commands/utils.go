@@ -193,29 +193,103 @@ func formatDiskUsage(diskInfo *core.DiskInfo) string {
 	return builder.String()
 }
 
-// formatSeedingStatus formats seeding status for Discord display
-func formatSeedingStatus(status core.SeedingStatus) string {
-	var builder strings.Builder
+// formatTorrentProgress formats torrent progress for Discord display
+func formatTorrentProgress(torrent *qbittorrent.Torrent, elapsed, remaining int) string {
+	progress := "0%"
+	if torrent.Size > 0 {
+		percentage := float64(torrent.Downloaded) / float64(torrent.Size) * 100
+		if percentage > 100 {
+			percentage = 100
+		}
+		progress = fmt.Sprintf("%.1f%%", percentage)
+	}
 
-	builder.WriteString(fmt.Sprintf("**Tracked Torrents:** %d\n", status.TrackedTorrents))
-	builder.WriteString(fmt.Sprintf("**Active Seeding:** %d\n", status.ActiveSeeding))
-	builder.WriteString(fmt.Sprintf("**Completed Seeding:** %d\n", status.CompletedSeeding))
-	builder.WriteString(fmt.Sprintf("**Overdue Seeding:** %d\n\n", status.OverdueSeeding))
+	downloadSpeed := "0 B/s"
+	if torrent.Dlspeed > 0 {
+		downloadSpeed = formatBytes(torrent.Dlspeed) + "/s"
+	}
 
-	if len(status.Details) > 0 {
-		builder.WriteString("**Tracked Torrents:**\n")
-		count := 0
-		for _, torrent := range status.Details {
-			if count >= 10 { // Limit to 10 torrents
-				builder.WriteString(fmt.Sprintf("... and %d more\n", len(status.Details)-10))
-				break
-			}
-			builder.WriteString(fmt.Sprintf("• %s (%s)\n", torrent.Name, formatBytes(int64(torrent.SeedingDuration))))
-			count++
+	uploadSpeed := "0 B/s"
+	if torrent.Upspeed > 0 {
+		uploadSpeed = formatBytes(torrent.Upspeed) + "/s"
+	}
+
+	eta := "Unknown"
+	if torrent.Eta > 0 {
+		eta = formatDuration(time.Duration(torrent.Eta) * time.Second)
+	}
+
+	ratio := "0.00"
+	if torrent.Ratio > 0 {
+		ratio = fmt.Sprintf("%.2f", torrent.Ratio)
+	}
+
+	progressBar := createProgressBar(float64(torrent.Downloaded), float64(torrent.Size))
+
+	content := fmt.Sprintf("📥 **%s**\n\n"+
+		"%s\n\n"+
+		"**Progress:** %s\n"+
+		"**Download Speed:** %s\n"+
+		"**Upload Speed:** %s\n"+
+		"**ETA:** %s\n"+
+		"**Ratio:** %s\n"+
+		"**Peers:** %d/%d (Seeds: %d)\n"+
+		"**State:** %s\n\n"+
+		"**Size:** %s\n"+
+		"**Downloaded:** %s\n"+
+		"**Uploaded:** %s",
+		torrent.Name,
+		progressBar,
+		progress,
+		downloadSpeed,
+		uploadSpeed,
+		eta,
+		ratio,
+		torrent.NumLeechs, torrent.NumIncomplete, torrent.NumSeeds,
+		getStateEmoji(torrent.State)+" "+string(torrent.State),
+		formatBytes(torrent.Size),
+		formatBytes(torrent.Downloaded),
+		formatBytes(torrent.Uploaded))
+
+	if elapsed > 0 || remaining > 0 {
+		content += fmt.Sprintf("\n\n⏱️ **Tracking:** %ds elapsed", elapsed)
+		if remaining > 0 {
+			content += fmt.Sprintf(", %ds remaining", remaining)
 		}
 	}
 
-	return builder.String()
+	return content
+}
+
+func createProgressBar(current, total float64) string {
+	const barLength = 20
+
+	if total <= 0 {
+		return strings.Repeat("░", barLength)
+	}
+
+	percentage := current / total
+	if percentage > 1.0 {
+		percentage = 1.0
+	}
+	filled := int(percentage * barLength)
+	if filled > barLength {
+		filled = barLength
+	}
+
+	bar := strings.Repeat("█", filled) + strings.Repeat("░", barLength-filled)
+	return fmt.Sprintf("`%s` %.1f%%", bar, percentage*100)
+}
+
+func formatDuration(d time.Duration) string {
+	if d < time.Minute {
+		return fmt.Sprintf("%ds", int(d.Seconds()))
+	} else if d < time.Hour {
+		return fmt.Sprintf("%dm %ds", int(d.Minutes()), int(d.Seconds())%60)
+	}
+	hours := int(d.Hours())
+	minutes := int(d.Minutes()) % 60
+	return fmt.Sprintf("%dh %dm", hours, minutes)
 }
 
 // formatLogs formats logs for Discord display

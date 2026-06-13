@@ -8,46 +8,30 @@ import (
 
 // HandleHelpCommand handles the /help Discord command
 func HandleHelpCommand(s *discordgo.Session, i *discordgo.InteractionCreate) {
-	content := "**🤖 Akira Torrent Manager - Discord Bot Commands**\n\n" +
-		"**📋 Torrent Management:**\n" +
-		"• `/torrents [filter]` - List all torrents with filtering\n" +
-		"• `/add <magnet> [category]` - Add a magnet link with **automatic live progress tracking**\n" +
-		"• `/delete` - **Interactive torrent deletion** - Select from list, confirm deletion\n" +
-		"• `/recategorize` - **Move a torrent** to a different category and save path\n" +
-		"• `/progress <torrent> [duration]` - Show live progress for a specific torrent\n\n" +
-		"**💾 System Information:**\n" +
-		"• `/disk` - Show disk usage with **interactive pie chart visualization**\n" +
-		"• `/logs [level] [lines]` - Show recent application logs\n" +
-		"• `/seeding-status` - Show seeding service status and statistics\n\n" +
-		"**🌱 Seeding Management:**\n" +
-		"• `/stop-seeding <torrent>` - Stop tracking a specific torrent for seeding\n\n" +
-		"**📖 Usage Examples:**\n" +
-		"• `/torrents filter:downloading` - Show only downloading torrents\n" +
-		"• `/add magnet:?xt=urn:btih:... category:movies` - Add movie torrent with live tracking\n" +
-		"• `/delete` - Opens interactive selection menu for torrent deletion\n" +
-		"• `/recategorize` - Select torrent, pick new category, confirm file move\n" +
-		"• `/progress \"My Movie\" duration:120` - Track progress for 2 minutes\n" +
-		"• `/logs level:error lines:20` - Show last 20 error logs\n\n" +
-		"**🔧 Filter Options:**\n" +
-		"• **torrents filter:** all, downloading, seeding, paused\n" +
-		"• **logs level:** all, error, warning, info, debug\n" +
-		"• **category:** default, movies, series, anime\n\n" +
-		"**💡 Tips:**\n" +
-		"• Use partial names for torrent queries\n" +
-		"• Hash queries are case-insensitive\n" +
-		"• **Add command automatically starts live progress tracking**\n" +
-		"• **Delete command now uses interactive selection** - no more manual typing!\n" +
-		"• **Disk command shows beautiful pie chart** with used/available space visualization\n" +
-		"• **Automatic seeding management** starts when torrents complete\n" +
-		"• **Seeding duration** = Download time × SEEDING_TIME_MULTIPLIER\n" +
-		"• Progress tracking updates every 5 seconds\n" +
-		"• Live tracking continues until completion or 30 minutes\n" +
-		"• Logs show newest entries first\n" +
-		"• **Multi-torrent deletion** supported with confirmation"
+	content := "**Akira — Discord commands for qBittorrent**\n\n" +
+		"Akira connects Discord to your qBittorrent instance. Use it to list and manage torrents, " +
+		"add magnets, fix categories, and check disk space or logs. Seeding time limits run " +
+		"automatically in the background (no Discord command required).\n\n" +
+		"**Commands**\n" +
+		"• `/torrents [filter]` — List torrents (filter: all, downloading, seeding, paused)\n" +
+		"• `/add magnet [category]` — Add a magnet; the reply updates with live progress until done\n" +
+		"• `/delete` — Select torrents from a menu, confirm, then remove torrent and files\n" +
+		"• `/recategorize` — Select a torrent, pick a new category, confirm move to that save path\n" +
+		"• `/disk` — Disk usage for configured download paths (includes a chart)\n" +
+		"• `/logs [level] [lines]` — Recent bot activity log (default: 10 lines)\n" +
+		"• `/help` — Show this message\n\n" +
+		"**Examples**\n" +
+		"• `/torrents filter:downloading`\n" +
+		"• `/add magnet:?xt=urn:btih:... category:series`\n" +
+		"• `/recategorize` — interactive flow to move a torrent to movies/series/anime/default\n" +
+		"• `/logs level:error lines:20`\n\n" +
+		"**Notes**\n" +
+		"• Categories: default, movies, series, anime (each maps to a save path in your env config)\n" +
+		"• `/delete` and `/recategorize` use select menus and confirmation buttons\n" +
+		"• Seeding stops automatically after download time × `SEEDING_TIME_MULTIPLIER`"
 
-	embed := createInfoEmbed("❓ Help & Commands", content)
+	embed := createInfoEmbed("Help & Commands", content)
 
-	// Send response
 	err := s.InteractionRespond(i.Interaction, &discordgo.InteractionResponse{
 		Type: discordgo.InteractionResponseChannelMessageWithSource,
 		Data: &discordgo.InteractionResponseData{

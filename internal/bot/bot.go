@@ -115,16 +115,10 @@ func (b *Bot) handleSlashCommand(s *discordgo.Session, i *discordgo.InteractionC
 		commands.HandleDeleteCommand(s, i, b.torrentService, b.seedingService)
 	case "recategorize":
 		commands.HandleRecategorizeCommand(s, i, b.torrentService, b.config)
-	case "progress":
-		commands.HandleProgressCommand(s, i, b.torrentService)
 	case "disk":
 		commands.HandleDiskCommand(s, i, b.diskService)
 	case "logs":
 		commands.HandleLogsCommand(s, i)
-	case "seeding-status":
-		commands.HandleSeedingStatusCommand(s, i, b.seedingService)
-	case "stop-seeding":
-		commands.HandleStopSeedingCommand(s, i, b.seedingService)
 	case "help":
 		commands.HandleHelpCommand(s, i)
 	default:
@@ -189,7 +183,7 @@ func (b *Bot) RegisterCommands() error {
 		},
 		{
 			Name:        "add",
-			Description: "Add a magnet link or torrent file",
+			Description: "Add a magnet link with category and live progress updates",
 			Options: []*discordgo.ApplicationCommandOption{
 				{
 					Type:        discordgo.ApplicationCommandOptionString,
@@ -245,40 +239,6 @@ func (b *Bot) RegisterCommands() error {
 					Name:        "lines",
 					Description: "Number of log lines to show (default: 10)",
 					Required:    false,
-				},
-			},
-		},
-		{
-			Name:        "seeding-status",
-			Description: "Show seeding status and statistics",
-		},
-		{
-			Name:        "progress",
-			Description: "Show live progress for a specific torrent",
-			Options: []*discordgo.ApplicationCommandOption{
-				{
-					Type:        discordgo.ApplicationCommandOptionString,
-					Name:        "torrent",
-					Description: "Torrent name or hash",
-					Required:    true,
-				},
-				{
-					Type:        discordgo.ApplicationCommandOptionInteger,
-					Name:        "duration",
-					Description: "Duration to track progress in seconds (10-300, default: 60)",
-					Required:    false,
-				},
-			},
-		},
-		{
-			Name:        "stop-seeding",
-			Description: "Stop seeding for a specific torrent",
-			Options: []*discordgo.ApplicationCommandOption{
-				{
-					Type:        discordgo.ApplicationCommandOptionString,
-					Name:        "torrent",
-					Description: "Torrent name or hash",
-					Required:    true,
 				},
 			},
 		},
