@@ -71,6 +71,8 @@ make install-user  # or make install for system-wide
 
 ### Docker
 
+#### Local development
+
 Run Akira in a container while connecting to an existing qBittorrent instance on your host or LAN.
 
 ```bash
@@ -82,8 +84,10 @@ docker compose logs -f akira
 Or use Makefile shortcuts:
 
 ```bash
-make docker-up
+make docker-up      # build and run locally
 make docker-down
+make docker-dev     # Air live reload for development
+make docker-dev-down
 ```
 
 **Configuration notes:**
@@ -92,6 +96,60 @@ make docker-down
 - `QBITTORRENT_*_SAVE_PATH` values must be **qBittorrent's paths** (e.g. `E:\Series` on Windows), not paths inside the container.
 - Logs and seeding state are persisted in `./data`.
 - For Discord disk-space commands to reflect real storage, mount the host download drive into the container and set `DISK_SPACE_CHECK_PATH` to the mount point (see `.env.example`).
+
+#### Production deployment (Windows Server auto-update)
+
+Push to `main` builds and publishes `ghcr.io/raainshe/akira:main`. A Watchtower sidecar on the server polls every 5 minutes, pulls when the image digest changes, and recreates the `akira` container. Your `.env` and `./data` on the host are unchanged across updates.
+
+**One-time server setup:**
+
+1. Install Docker (Engine or Desktop) with **Linux containers** enabled.
+2. Create a deploy directory, e.g. `C:\akira\`.
+3. Copy to the server:
+   - `docker-compose.prod.yml`
+   - `.env` (from `.env.example`, with real secrets — never baked into the image)
+4. Create the data directory: `mkdir data`
+5. Start the stack:
+
+   ```powershell
+   docker compose -f docker-compose.prod.yml pull
+   docker compose -f docker-compose.prod.yml up -d
+   ```
+
+   Or with Make: `make docker-prod-up`
+
+6. Verify both containers are running:
+
+   ```powershell
+   docker compose -f docker-compose.prod.yml ps
+   ```
+
+   You should see `akira` and `watchtower`.
+
+7. After the first GitHub Actions publish, set the GHCR package to **Public**: GitHub → Packages → akira → Package settings → Change visibility.
+
+**Update flow (automatic):**
+
+```
+Push to main → GitHub Actions publishes image → Watchtower detects new digest → akira restarts
+```
+
+No manual binary download required. Updates apply within the Watchtower poll interval (5 minutes).
+
+**Useful commands:**
+
+```bash
+make docker-prod-up    # pull latest image and start/restart stack
+make docker-prod-down  # stop stack
+make docker-prod-logs  # follow akira logs
+```
+
+**Windows Server note:** If Watchtower cannot connect to Docker, try swapping the socket volume in `docker-compose.prod.yml` to the Windows named pipe form for your install, e.g. `//./pipe/docker_engine://./pipe/docker_engine`.
+
+**What persists across updates:**
+
+- `.env` on the host
+- `./data/` (`bot_activity.log`, `seeding_tracking.json`, pid file)
 
 ## Setup
 
