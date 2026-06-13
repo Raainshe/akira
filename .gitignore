@@ -24,10 +24,22 @@ profile.cov
 go.work
 go.work.sum
 
-# env file
+# env files
 .env
+akira.env
+
+# Docker runtime data
+data/
+
+# Air live reload artifacts
+tmp/
+build-errors.log
 
 # Editor/IDE
 # .idea/
 # .vscode/
+/testdata
+/scripts
 
+# Issue tracking documents
+ISSUES_TO_FIX.md

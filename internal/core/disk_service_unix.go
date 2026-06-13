@@ -50,3 +50,18 @@ func (ds *DiskService) getDiskSpacePlatform(path string) (*DiskInfo, error) {
 		LastChecked: time.Now(),
 	}, nil
 }
+
+// getDriveIdentifierPlatform returns a unique identifier for the filesystem (Unix)
+// Uses filesystem device ID to identify unique filesystems
+func (ds *DiskService) getDriveIdentifierPlatform(path string) (string, error) {
+	var stat syscall.Statfs_t
+	err := syscall.Statfs(path, &stat)
+	if err != nil {
+		return "", fmt.Errorf("failed to get filesystem stats: %w", err)
+	}
+	// Use filesystem ID (combination of type and device) to identify unique filesystems
+	// Format: "type:fsid0:fsid1" where fsid is a struct with two int32 values
+	// Access the internal array field X__val
+	fsid := stat.Fsid
+	return fmt.Sprintf("%d:%d:%d", stat.Type, fsid.X__val[0], fsid.X__val[1]), nil
+}

@@ -13,6 +13,15 @@ import (
 	"github.com/raainshe/akira/internal/qbittorrent"
 )
 
+// torrentTimer represents a timer for a single torrent's seeding stop time
+type torrentTimer struct {
+	hash       string
+	stopTime   time.Time
+	timer      *time.Timer
+	cancelChan chan struct{}
+	mu         sync.Mutex
+}
+
 // SeedingService manages automatic seeding time limits and tracking
 type SeedingService struct {
 	config         *config.Config
@@ -24,7 +33,11 @@ type SeedingService struct {
 	trackingData map[string]*qbittorrent.SeedingTrackingData
 	dataMutex    sync.RWMutex
 
-	// Background processing
+	// Timer management (individual timers per torrent)
+	timers      map[string]*torrentTimer
+	timersMutex sync.RWMutex
+
+	// Background processing (for periodic validation safety net)
 	stopChan     chan struct{}
 	ticker       *time.Ticker
 	isRunning    bool
@@ -65,6 +78,7 @@ func NewSeedingService(config *config.Config, torrentService *TorrentService, cl
 		client:         client,
 		logger:         logging.GetSeedingLogger(),
 		trackingData:   make(map[string]*qbittorrent.SeedingTrackingData),
+		timers:         make(map[string]*torrentTimer),
 		stopChan:       make(chan struct{}),
 	}
 }
@@ -85,11 +99,19 @@ func (ss *SeedingService) Start(ctx context.Context) error {
 		ss.logger.WithError(err).Warn("Failed to load tracking data, starting fresh")
 	}
 
-	// Set up periodic checking
-	ss.ticker = time.NewTicker(ss.config.Seeding.CheckInterval)
+	// Recreate timers for torrents that have completed but not yet stopped
+	ss.recreateTimersFromTrackingData(ctx)
+
+	// Set up periodic validation (safety net - less frequent than before)
+	// Run every 15-30 minutes to catch any missed stops
+	validationInterval := 15 * time.Minute
+	if ss.config.Seeding.CheckInterval > validationInterval {
+		validationInterval = ss.config.Seeding.CheckInterval
+	}
+	ss.ticker = time.NewTicker(validationInterval)
 	ss.isRunning = true
 
-	// Start background goroutine
+	// Start background goroutine for periodic validation
 	go ss.backgroundProcessor(ctx)
 
 	ss.logger.WithFields(map[string]interface{}{
@@ -211,6 +233,9 @@ func (ss *SeedingService) MarkTorrentCompleted(ctx context.Context, hash string,
 		}
 	}()
 
+	// Schedule stop timer for this torrent
+	ss.scheduleStopTimer(ctx, hash, trackingData.SeedingStopTime)
+
 	return nil
 }
 
@@ -230,6 +255,9 @@ func (ss *SeedingService) StopTracking(hash string) error {
 		"hash": hash,
 		"name": trackingData.Name,
 	}).Info("Stopped tracking torrent")
+
+	// Cancel stop timer for this torrent
+	ss.cancelStopTimer(hash)
 
 	// Save tracking data (call without holding lock to avoid deadlock)
 	go func() {
@@ -257,6 +285,9 @@ func (ss *SeedingService) CheckSeedingLimits(ctx context.Context) error {
 	for _, torrent := range torrents {
 		torrentMap[torrent.Hash] = torrent
 	}
+
+	// First, check for new torrents that should be tracked
+	ss.checkForNewTorrents(ctx, torrentMap)
 
 	ss.dataMutex.Lock()
 	defer ss.dataMutex.Unlock()
@@ -301,31 +332,26 @@ func (ss *SeedingService) CheckSeedingLimits(ctx context.Context) error {
 
 			// Log the completion
 			logging.LogTorrentCompleted(trackingData.Name, hash, trackingData.DownloadDuration.String())
+
+			// Schedule stop timer for this torrent
+			// Release lock before scheduling timer to avoid deadlock
+			hashCopy := hash
+			stopTimeCopy := trackingData.SeedingStopTime
+			ss.dataMutex.Unlock()
+			ss.scheduleStopTimer(ctx, hashCopy, stopTimeCopy)
+			ss.dataMutex.Lock()
 		}
 
-		// Check if seeding should be stopped
+		// Check if seeding should be stopped (fallback - timers should handle this, but check anyway)
 		if !trackingData.DownloadCompleteTime.IsZero() && now.After(trackingData.SeedingStopTime) {
-			// Time to stop seeding
+			// Time to stop seeding - timer should have handled this, but check as fallback
 			if torrent.IsSeeding() {
-				err := ss.torrentService.StopTorrents(ctx, []string{hash})
-				if err != nil {
-					ss.logger.WithError(err).WithField("hash", hash).Error("Failed to stop torrent for seeding limit")
-					continue
-				}
-
-				trackingData.AutoStopped = true
-				trackingData.UpdatedAt = now
+				// Timer might have missed this, stop it now
+				hashCopy := hash
+				ss.dataMutex.Unlock()
+				ss.handleTimerExpired(ctx, hashCopy)
+				ss.dataMutex.Lock()
 				stoppedCount++
-
-				seedingDuration := now.Sub(trackingData.DownloadCompleteTime)
-				ss.logger.WithFields(map[string]interface{}{
-					"hash":             hash,
-					"name":             trackingData.Name,
-					"seeding_duration": seedingDuration,
-				}).Info("Automatically stopped seeding due to time limit")
-
-				// Log the seeding stop
-				logging.LogSeedingStopped(trackingData.Name, hash, seedingDuration.String())
 			}
 		}
 	}
@@ -490,12 +516,13 @@ func (ss *SeedingService) IsRunning() bool {
 	return ss.isRunning
 }
 
-// backgroundProcessor runs the periodic seeding limit checks
+// backgroundProcessor runs periodic validation (safety net)
+// Individual timers handle most stops, this catches any missed ones
 func (ss *SeedingService) backgroundProcessor(ctx context.Context) {
-	ss.logger.Info("Background seeding processor started")
+	ss.logger.Info("Background seeding validation processor started")
 
 	defer func() {
-		ss.logger.Info("Background seeding processor stopped")
+		ss.logger.Info("Background seeding validation processor stopped")
 	}()
 
 	for {
@@ -505,8 +532,8 @@ func (ss *SeedingService) backgroundProcessor(ctx context.Context) {
 		case <-ctx.Done():
 			return
 		case <-ss.ticker.C:
-			if err := ss.CheckSeedingLimits(ctx); err != nil {
-				ss.logger.WithError(err).Error("Failed to check seeding limits")
+			if err := ss.validateAndRecover(ctx); err != nil {
+				ss.logger.WithError(err).Error("Failed to validate seeding limits")
 			}
 		}
 	}
@@ -568,5 +595,292 @@ func (ss *SeedingService) ForceStopSeeding(ctx context.Context, hashes []string)
 	}
 
 	ss.logger.WithField("count", len(hashes)).Info("Force stopped seeding for torrents")
+	return nil
+}
+
+// checkForNewTorrents automatically detects and starts tracking new torrents
+func (ss *SeedingService) checkForNewTorrents(ctx context.Context, torrentMap map[string]qbittorrent.Torrent) {
+	ss.dataMutex.RLock()
+	defer ss.dataMutex.RUnlock()
+
+	newTorrentsCount := 0
+
+	for hash, torrent := range torrentMap {
+		// Skip if already being tracked
+		if _, exists := ss.trackingData[hash]; exists {
+			continue
+		}
+
+		// Only track torrents that are downloading or seeding (not paused/error states)
+		if torrent.IsDownloading() || torrent.IsSeeding() {
+			// Start tracking this new torrent
+			go func(hash, name string) {
+				// Use a separate context to avoid blocking
+				trackCtx := context.Background()
+
+				// Start tracking
+				if err := ss.StartTracking(trackCtx, hash, name); err != nil {
+					ss.logger.WithError(err).WithField("hash", hash).Debug("Failed to start tracking new torrent")
+					return
+				}
+
+				// If the torrent is already completed, mark it as such
+				if torrent.IsCompleted() {
+					// Estimate download duration (we don't know the actual start time)
+					// Use a reasonable default based on torrent size
+					estimatedDuration := time.Duration(torrent.Size/(1024*1024)) * time.Second // 1 second per MB as rough estimate
+					if estimatedDuration < time.Minute {
+						estimatedDuration = time.Minute // Minimum 1 minute
+					}
+					if estimatedDuration > 24*time.Hour {
+						estimatedDuration = 24 * time.Hour // Maximum 24 hours
+					}
+
+					if err := ss.MarkTorrentCompleted(trackCtx, hash, estimatedDuration); err != nil {
+						ss.logger.WithError(err).WithField("hash", hash).Debug("Failed to mark new torrent as completed")
+					} else {
+						ss.logger.WithFields(map[string]interface{}{
+							"hash":               hash,
+							"name":               name,
+							"estimated_duration": estimatedDuration,
+						}).Info("Auto-started tracking for completed torrent")
+					}
+				} else {
+					ss.logger.WithFields(map[string]interface{}{
+						"hash": hash,
+						"name": name,
+					}).Info("Auto-started tracking for new torrent")
+				}
+			}(hash, torrent.Name)
+
+			newTorrentsCount++
+		}
+	}
+
+	if newTorrentsCount > 0 {
+		ss.logger.WithField("count", newTorrentsCount).Info("Auto-detected new torrents for tracking")
+	}
+}
+
+// Timer management methods
+
+// scheduleStopTimer schedules a timer to stop seeding for a torrent at the specified time
+func (ss *SeedingService) scheduleStopTimer(ctx context.Context, hash string, stopTime time.Time) {
+	ss.timersMutex.Lock()
+	defer ss.timersMutex.Unlock()
+
+	// Cancel existing timer if any
+	if existingTimer, exists := ss.timers[hash]; exists {
+		existingTimer.mu.Lock()
+		if existingTimer.timer != nil {
+			existingTimer.timer.Stop()
+		}
+		close(existingTimer.cancelChan)
+		existingTimer.mu.Unlock()
+	}
+
+	// Calculate duration until stop time
+	duration := time.Until(stopTime)
+	if duration <= 0 {
+		// Stop time has already passed, stop immediately
+		ss.logger.WithField("hash", hash).Warn("Stop time has already passed, stopping immediately")
+		go ss.handleTimerExpired(ctx, hash)
+		return
+	}
+
+	// Create new timer
+	timer := time.NewTimer(duration)
+	cancelChan := make(chan struct{})
+
+	torrentTimer := &torrentTimer{
+		hash:       hash,
+		stopTime:   stopTime,
+		timer:      timer,
+		cancelChan: cancelChan,
+	}
+
+	ss.timers[hash] = torrentTimer
+
+	// Start goroutine to handle timer expiration
+	go func() {
+		select {
+		case <-timer.C:
+			// Timer expired - stop the torrent
+			ss.handleTimerExpired(ctx, hash)
+		case <-cancelChan:
+			// Timer was cancelled
+			ss.timersMutex.Lock()
+			delete(ss.timers, hash)
+			ss.timersMutex.Unlock()
+			return
+		case <-ctx.Done():
+			// Context cancelled
+			return
+		}
+	}()
+
+	ss.logger.WithFields(map[string]interface{}{
+		"hash":      hash,
+		"stop_time": stopTime,
+		"duration":  duration,
+	}).Debug("Scheduled stop timer for torrent")
+}
+
+// cancelStopTimer cancels the stop timer for a torrent
+func (ss *SeedingService) cancelStopTimer(hash string) {
+	ss.timersMutex.Lock()
+	defer ss.timersMutex.Unlock()
+
+	timer, exists := ss.timers[hash]
+	if !exists {
+		return
+	}
+
+	timer.mu.Lock()
+	if timer.timer != nil {
+		timer.timer.Stop()
+	}
+	select {
+	case <-timer.cancelChan:
+		// Already closed
+	default:
+		close(timer.cancelChan)
+	}
+	timer.mu.Unlock()
+
+	delete(ss.timers, hash)
+
+	ss.logger.WithField("hash", hash).Debug("Cancelled stop timer for torrent")
+}
+
+// handleTimerExpired handles when a timer expires and stops the torrent
+func (ss *SeedingService) handleTimerExpired(ctx context.Context, hash string) {
+	ss.logger.WithField("hash", hash).Info("Timer expired, stopping torrent")
+
+	// Get current torrent info to verify it's still seeding
+	torrent, err := ss.torrentService.FindTorrentByHash(ctx, hash)
+	if err != nil {
+		ss.logger.WithError(err).WithField("hash", hash).Warn("Torrent not found when timer expired, may have been deleted")
+		// Clean up timer
+		ss.timersMutex.Lock()
+		delete(ss.timers, hash)
+		ss.timersMutex.Unlock()
+		return
+	}
+
+	// Only stop if still seeding
+	if torrent.IsSeeding() {
+		err = ss.torrentService.StopTorrents(ctx, []string{hash})
+		if err != nil {
+			ss.logger.WithError(err).WithField("hash", hash).Error("Failed to stop torrent when timer expired")
+			return
+		}
+
+		// Update tracking data
+		ss.dataMutex.Lock()
+		if trackingData, exists := ss.trackingData[hash]; exists {
+			trackingData.AutoStopped = true
+			trackingData.UpdatedAt = time.Now()
+
+			seedingDuration := time.Since(trackingData.DownloadCompleteTime)
+			ss.logger.WithFields(map[string]interface{}{
+				"hash":             hash,
+				"name":             trackingData.Name,
+				"seeding_duration": seedingDuration,
+			}).Info("Automatically stopped seeding due to time limit")
+
+			// Log the seeding stop
+			logging.LogSeedingStopped(trackingData.Name, hash, seedingDuration.String())
+		}
+		ss.dataMutex.Unlock()
+
+		// Save tracking data
+		go func() {
+			if err := ss.SaveTrackingData(); err != nil {
+				ss.logger.WithError(err).Error("Failed to save tracking data after timer expiration")
+			}
+		}()
+	}
+
+	// Clean up timer
+	ss.timersMutex.Lock()
+	delete(ss.timers, hash)
+	ss.timersMutex.Unlock()
+}
+
+// recreateTimersFromTrackingData recreates timers for torrents that have completed but not yet stopped
+func (ss *SeedingService) recreateTimersFromTrackingData(ctx context.Context) {
+	ss.dataMutex.RLock()
+	defer ss.dataMutex.RUnlock()
+
+	now := time.Now()
+	recreatedCount := 0
+
+	for hash, trackingData := range ss.trackingData {
+		// Only recreate timers for torrents that:
+		// 1. Have completed downloading (have a stop time)
+		// 2. Haven't been auto-stopped yet
+		// 3. Stop time is in the future
+		if !trackingData.DownloadCompleteTime.IsZero() &&
+			!trackingData.AutoStopped &&
+			trackingData.SeedingStopTime.After(now) {
+			ss.scheduleStopTimer(ctx, hash, trackingData.SeedingStopTime)
+			recreatedCount++
+		}
+	}
+
+	if recreatedCount > 0 {
+		ss.logger.WithField("count", recreatedCount).Info("Recreated timers from saved tracking data")
+	}
+}
+
+// validateAndRecover performs periodic validation to catch any missed stops (safety net)
+func (ss *SeedingService) validateAndRecover(ctx context.Context) error {
+	ss.logger.Debug("Running periodic seeding validation")
+
+	// Get current torrents from qBittorrent
+	torrents, err := ss.torrentService.GetTorrents(ctx, nil)
+	if err != nil {
+		ss.logger.WithError(err).Error("Failed to get torrents for validation")
+		return fmt.Errorf("failed to get torrents: %w", err)
+	}
+
+	// Create hash map for quick lookup
+	torrentMap := make(map[string]qbittorrent.Torrent)
+	for _, torrent := range torrents {
+		torrentMap[torrent.Hash] = torrent
+	}
+
+	ss.dataMutex.RLock()
+	now := time.Now()
+	recoveredCount := 0
+
+	// Check for overdue torrents that should have been stopped
+	for hash, trackingData := range ss.trackingData {
+		// Skip if already auto-stopped
+		if trackingData.AutoStopped {
+			continue
+		}
+
+		// Check if stop time has passed
+		if !trackingData.DownloadCompleteTime.IsZero() && now.After(trackingData.SeedingStopTime) {
+			// Should have been stopped - check if it's still seeding
+			torrent, exists := torrentMap[hash]
+			if exists && torrent.IsSeeding() {
+				ss.logger.WithField("hash", hash).Warn("Found overdue torrent that should have been stopped, recovering")
+				// Stop it now
+				ss.dataMutex.RUnlock()
+				ss.handleTimerExpired(ctx, hash)
+				ss.dataMutex.RLock()
+				recoveredCount++
+			}
+		}
+	}
+	ss.dataMutex.RUnlock()
+
+	if recoveredCount > 0 {
+		ss.logger.WithField("count", recoveredCount).Info("Recovered overdue torrents during validation")
+	}
+
 	return nil
 }

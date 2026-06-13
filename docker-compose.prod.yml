@@ -1,0 +1,35 @@
+# Production stack for Windows Server (or any host with Docker).
+# Pulls pre-built images from GHCR — never builds on the server.
+# Watchtower auto-updates akira when ghcr.io/raainshe/akira:main changes.
+#
+# Usage:
+#   docker compose -f docker-compose.prod.yml pull
+#   docker compose -f docker-compose.prod.yml up -d
+# Or: make docker-prod-up
+
+services:
+  akira:
+    image: ghcr.io/raainshe/akira:main
+    container_name: akira
+    restart: unless-stopped
+    env_file:
+      - .env
+    environment:
+      LOG_FILE: /data/bot_activity.log
+      SEEDING_TRACKING_DATA_FILE: /data/seeding_tracking.json
+    volumes:
+      - ./data:/data
+    extra_hosts:
+      - "host.docker.internal:host-gateway"
+
+  watchtower:
+    image: containrrr/watchtower
+    container_name: watchtower
+    restart: unless-stopped
+    volumes:
+      - /var/run/docker.sock:/var/run/docker.sock
+    environment:
+      WATCHTOWER_POLL_INTERVAL: 300
+      WATCHTOWER_CLEANUP: "true"
+      WATCHTOWER_ROLLING_RESTART: "true"
+    command: --interval 300 akira

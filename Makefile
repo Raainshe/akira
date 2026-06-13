@@ -3,7 +3,7 @@ VERSION ?= $(shell git describe --tags --always --dirty)
 BUILD_TIME = $(shell date -u '+%Y-%m-%d_%H:%M:%S')
 LDFLAGS = -ldflags "-X main.Version=$(VERSION) -X main.BuildTime=$(BUILD_TIME)"
 
-.PHONY: build build-linux build-darwin build-windows install clean
+.PHONY: build build-linux build-darwin build-windows install clean docker-build docker-up docker-down docker-dev docker-dev-down docker-prod-up docker-prod-down docker-prod-logs gen-fake-torrents
 
 # Build for current platform
 build:
@@ -47,6 +47,38 @@ release: build-all
 clean:
 	rm -rf bin/ releases/
 
+# Docker
+docker-build:
+	VERSION=$(VERSION) BUILD_TIME=$(BUILD_TIME) docker compose build
+
+docker-up:
+	docker compose up -d --build
+
+docker-down:
+	docker compose down
+
+# Dev stack with Air live reload (source mounted; uses docker-compose.dev.yml overlay)
+docker-dev:
+	docker compose -f docker-compose.yml -f docker-compose.dev.yml up --build -d
+
+docker-dev-down:
+	docker compose -f docker-compose.yml -f docker-compose.dev.yml down
+
+# Production stack: pull pre-built image from GHCR + Watchtower auto-updates
+docker-prod-up:
+	docker compose -f docker-compose.prod.yml pull
+	docker compose -f docker-compose.prod.yml up -d
+
+docker-prod-down:
+	docker compose -f docker-compose.prod.yml down
+
+docker-prod-logs:
+	docker compose -f docker-compose.prod.yml logs -f akira
+
+# Generate fake torrents for local testing (see scripts/genfake/main.go)
+gen-fake-torrents:
+	go run ./scripts/genfake -count 3 -out testdata/fake-torrents
+
 # Run tests
 test:
 	go test ./...
@@ -75,6 +107,15 @@ help:
 	@echo "  install-user - Install to user directory"
 	@echo "  release      - Create release archives"
 	@echo "  clean        - Clean build artifacts"
+	@echo "  docker-build    - Build production Docker image"
+	@echo "  docker-up       - Start Akira (production image, detached)"
+	@echo "  docker-down     - Stop production docker compose stack"
+	@echo "  docker-dev      - Start dev stack with Air live reload (detached)"
+	@echo "  docker-dev-down - Stop dev docker compose stack"
+	@echo "  docker-prod-up  - Pull GHCR image and start production stack + Watchtower"
+	@echo "  docker-prod-down- Stop production stack (docker-compose.prod.yml)"
+	@echo "  docker-prod-logs- Follow production akira container logs"
+	@echo "  gen-fake-torrents - Generate fake .torrent files and magnets"
 	@echo "  test         - Run tests"
 	@echo "  fmt          - Format code"
 	@echo "  lint         - Lint code"

@@ -109,52 +109,37 @@ func isValidMagnetURI(uri string) bool {
 func trackTorrentProgress(s *discordgo.Session, i *discordgo.InteractionCreate, torrentService *core.TorrentService, seedingService *core.SeedingService, config *config.Config, hash, torrentName string) {
 	ctx := context.Background()
 	startTime := time.Now()
+	discordInteractionActive := true
+	var followUpMessage *discordgo.Message
 
 	// Update every 5 seconds
 	ticker := time.NewTicker(5 * time.Second)
 	defer ticker.Stop()
 
-	// Track until completion or for maximum 30 minutes
-	maxDuration := 30 * time.Minute
-	endTime := startTime.Add(maxDuration)
-
 	for {
 		select {
 		case <-ticker.C:
-			// Check if we should stop
-			if time.Now().After(endTime) {
-				// Send final update
-				finalContent := fmt.Sprintf("⏰ **Progress tracking completed**\n\n"+
-					"**%s**\n\n"+
-					"Live progress updates have stopped after 30 minutes.\n"+
-					"Use `/progress \"%s\"` to continue tracking if needed.",
-					torrentName, torrentName)
-				embed := createInfoEmbed("📊 Torrent Progress - Completed", finalContent)
-
-				_, err := s.InteractionResponseEdit(i.Interaction, &discordgo.WebhookEdit{
-					Embeds: &[]*discordgo.MessageEmbed{embed},
-				})
-				if err != nil {
-					fmt.Printf("Failed to send final progress update: %v\n", err)
-				}
-				return
-			}
 
 			// Get updated torrent info
 			torrent, err := torrentService.FindTorrentByHash(ctx, hash)
 			if err != nil {
 				// Torrent might have been deleted
-				finalContent := fmt.Sprintf("❌ **Torrent not found**\n\n"+
-					"**%s**\n\n"+
-					"The torrent may have been deleted or is no longer available.",
-					torrentName)
-				embed := createInfoEmbed("📊 Torrent Progress - Error", finalContent)
+				if discordInteractionActive {
+					finalContent := fmt.Sprintf("❌ **Torrent not found**\n\n"+
+						"**%s**\n\n"+
+						"The torrent may have been deleted or is no longer available.",
+						torrentName)
+					embed := createInfoEmbed("📊 Torrent Progress - Error", finalContent)
 
-				_, err := s.InteractionResponseEdit(i.Interaction, &discordgo.WebhookEdit{
-					Embeds: &[]*discordgo.MessageEmbed{embed},
-				})
-				if err != nil {
-					fmt.Printf("Failed to send error progress update: %v\n", err)
+					_, err := s.InteractionResponseEdit(i.Interaction, &discordgo.WebhookEdit{
+						Embeds: &[]*discordgo.MessageEmbed{embed},
+					})
+					if err != nil {
+						fmt.Printf("Discord interaction expired, continuing background tracking: %v\n", err)
+						discordInteractionActive = false
+					}
+				} else {
+					fmt.Printf("Torrent %s not found, stopping background tracking\n", torrentName)
 				}
 				return
 			}
@@ -163,21 +148,12 @@ func trackTorrentProgress(s *discordgo.Session, i *discordgo.InteractionCreate, 
 			if torrent.Progress >= 1.0 {
 				// Torrent is complete!
 				elapsed := int(time.Since(startTime).Seconds())
-				content := formatTorrentProgress(torrent, elapsed, 0)
-				content += "\n\n🎉 **Torrent completed!** Starting automatic seeding management..."
-				embed := createSuccessEmbed("✅ Torrent Completed!", content)
+				downloadDuration := time.Duration(elapsed) * time.Second
 
-				_, err = s.InteractionResponseEdit(i.Interaction, &discordgo.WebhookEdit{
-					Embeds: &[]*discordgo.MessageEmbed{embed},
-				})
-				if err != nil {
-					fmt.Printf("Failed to update completion status: %v\n", err)
-				}
-
-				// Start automatic seeding management
+				// Start automatic seeding management IMMEDIATELY (outside Discord context)
+				// This ensures tracking happens even if Discord interaction expires
 				go func() {
 					// Start tracking the torrent for seeding management
-					downloadDuration := time.Duration(elapsed) * time.Second
 					if err := seedingService.StartTracking(ctx, hash, torrent.Name); err != nil {
 						fmt.Printf("Failed to start seeding tracking: %v\n", err)
 						return
@@ -189,44 +165,128 @@ func trackTorrentProgress(s *discordgo.Session, i *discordgo.InteractionCreate, 
 						return
 					}
 
-					// Calculate seeding duration based on download time and multiplier
-					seedingDuration := time.Duration(float64(downloadDuration) * config.Seeding.TimeMultiplier)
-
-					// Update message to show seeding management info
-					content := formatTorrentProgress(torrent, elapsed, 0)
-					content += fmt.Sprintf("\n\n🌱 **Seeding Management Started!**\n"+
-						"**Download Time:** %s\n"+
-						"**Seeding Duration:** %s\n"+
-						"**Auto-stop Time:** %s",
-						formatDuration(downloadDuration),
-						formatDuration(seedingDuration),
-						time.Now().Add(seedingDuration).Format("2006-01-02 15:04:05"))
-
-					embed := createSuccessEmbed("🌱 Seeding Management Active", content)
-					s.InteractionResponseEdit(i.Interaction, &discordgo.WebhookEdit{
-						Embeds: &[]*discordgo.MessageEmbed{embed},
-					})
+					fmt.Printf("✅ Started seeding tracking for torrent %s (hash: %s, download time: %s)\n",
+						torrent.Name, hash, downloadDuration)
 				}()
 
-				// Continue tracking for 2 more minutes after completion
-				completionTime := time.Now()
-				for time.Since(completionTime) < 2*time.Minute {
-					time.Sleep(10 * time.Second)
-
-					// Get final stats
-					torrent, err := torrentService.FindTorrentByHash(ctx, hash)
-					if err != nil {
-						break
-					}
-
-					elapsed := int(time.Since(startTime).Seconds())
+				// Try to update Discord message (may fail if interaction expired)
+				if discordInteractionActive {
 					content := formatTorrentProgress(torrent, elapsed, 0)
-					content += "\n\n🎉 **Torrent completed!** Seeding management is active."
+					content += "\n\n🎉 **Torrent completed!** Starting automatic seeding management..."
 					embed := createSuccessEmbed("✅ Torrent Completed!", content)
 
-					s.InteractionResponseEdit(i.Interaction, &discordgo.WebhookEdit{
+					_, err = s.InteractionResponseEdit(i.Interaction, &discordgo.WebhookEdit{
 						Embeds: &[]*discordgo.MessageEmbed{embed},
 					})
+					if err != nil {
+						fmt.Printf("Discord interaction expired, continuing background tracking: %v\n", err)
+						discordInteractionActive = false
+					}
+
+					// Try to update with seeding info (may also fail)
+					go func() {
+						time.Sleep(2 * time.Second) // Give seeding service time to process
+
+						// Calculate seeding duration based on download time and multiplier
+						seedingDuration := time.Duration(float64(downloadDuration) * config.Seeding.TimeMultiplier)
+
+						// Update message to show seeding management info
+						content := formatTorrentProgress(torrent, elapsed, 0)
+						content += fmt.Sprintf("\n\n🌱 **Seeding Management Started!**\n"+
+							"**Download Time:** %s\n"+
+							"**Seeding Duration:** %s\n"+
+							"**Auto-stop Time:** %s",
+							formatDuration(downloadDuration),
+							formatDuration(seedingDuration),
+							time.Now().Add(seedingDuration).Format("2006-01-02 15:04:05"))
+
+						embed := createSuccessEmbed("🌱 Seeding Management Active", content)
+						_, editErr := s.InteractionResponseEdit(i.Interaction, &discordgo.WebhookEdit{
+							Embeds: &[]*discordgo.MessageEmbed{embed},
+						})
+						if editErr != nil {
+							fmt.Printf("Discord interaction expired, seeding tracking still active: %v\n", editErr)
+						}
+					}()
+				} else if followUpMessage != nil {
+					// Update follow-up message with completion
+					content := formatTorrentProgress(torrent, elapsed, 0)
+					content += "\n\n🎉 **Torrent completed!** Starting automatic seeding management..."
+					content += fmt.Sprintf("\n\n⏰ **Extended Tracking**\n" +
+						"Original Discord interaction expired after 15 minutes.\n" +
+						"Seeding management is now active!")
+					embed := createSuccessEmbed("✅ Torrent Completed!", content)
+
+					embeds := []*discordgo.MessageEmbed{embed}
+					_, err = s.ChannelMessageEditComplex(&discordgo.MessageEdit{
+						Channel: followUpMessage.ChannelID,
+						ID:      followUpMessage.ID,
+						Embeds:  &embeds,
+					})
+					if err != nil {
+						fmt.Printf("Failed to update follow-up message with completion: %v\n", err)
+					}
+
+					// Try to update with seeding info
+					go func() {
+						time.Sleep(2 * time.Second) // Give seeding service time to process
+
+						// Calculate seeding duration based on download time and multiplier
+						seedingDuration := time.Duration(float64(downloadDuration) * config.Seeding.TimeMultiplier)
+
+						// Update message to show seeding management info
+						content := formatTorrentProgress(torrent, elapsed, 0)
+						content += fmt.Sprintf("\n\n🌱 **Seeding Management Started!**\n"+
+							"**Download Time:** %s\n"+
+							"**Seeding Duration:** %s\n"+
+							"**Auto-stop Time:** %s",
+							formatDuration(downloadDuration),
+							formatDuration(seedingDuration),
+							time.Now().Add(seedingDuration).Format("2006-01-02 15:04:05"))
+						content += fmt.Sprintf("\n\n⏰ **Extended Tracking**\n" +
+							"Original Discord interaction expired after 15 minutes.\n" +
+							"Seeding management is now active!")
+
+						embed := createSuccessEmbed("🌱 Seeding Management Active", content)
+						embeds := []*discordgo.MessageEmbed{embed}
+						_, editErr := s.ChannelMessageEditComplex(&discordgo.MessageEdit{
+							Channel: followUpMessage.ChannelID,
+							ID:      followUpMessage.ID,
+							Embeds:  &embeds,
+						})
+						if editErr != nil {
+							fmt.Printf("Failed to update follow-up message with seeding info: %v\n", editErr)
+						}
+					}()
+				} else {
+					fmt.Printf("✅ Torrent %s completed! Seeding management started (Discord interaction expired)\n", torrentName)
+				}
+
+				// Continue tracking for 2 more minutes after completion (only if Discord is still active)
+				if discordInteractionActive {
+					completionTime := time.Now()
+					for time.Since(completionTime) < 2*time.Minute {
+						time.Sleep(10 * time.Second)
+
+						// Get final stats
+						torrent, err := torrentService.FindTorrentByHash(ctx, hash)
+						if err != nil {
+							break
+						}
+
+						elapsed := int(time.Since(startTime).Seconds())
+						content := formatTorrentProgress(torrent, elapsed, 0)
+						content += "\n\n🎉 **Torrent completed!** Seeding management is active."
+						embed := createSuccessEmbed("✅ Torrent Completed!", content)
+
+						_, err = s.InteractionResponseEdit(i.Interaction, &discordgo.WebhookEdit{
+							Embeds: &[]*discordgo.MessageEmbed{embed},
+						})
+						if err != nil {
+							fmt.Printf("Discord interaction expired during post-completion tracking: %v\n", err)
+							break
+						}
+					}
 				}
 				return
 			}
@@ -234,16 +294,46 @@ func trackTorrentProgress(s *discordgo.Session, i *discordgo.InteractionCreate, 
 			// Calculate elapsed time
 			elapsed := int(time.Since(startTime).Seconds())
 
-			// Update progress message
-			content := formatTorrentProgress(torrent, elapsed, 0)
-			embed := createInfoEmbed("📊 Live Torrent Progress", content)
+			// Update progress message (only if Discord interaction is still active)
+			if discordInteractionActive {
+				content := formatTorrentProgress(torrent, elapsed, 0)
+				embed := createInfoEmbed("📊 Live Torrent Progress", content)
 
-			_, err = s.InteractionResponseEdit(i.Interaction, &discordgo.WebhookEdit{
-				Embeds: &[]*discordgo.MessageEmbed{embed},
-			})
-			if err != nil {
-				fmt.Printf("Failed to update progress: %v\n", err)
-				return
+				_, err = s.InteractionResponseEdit(i.Interaction, &discordgo.WebhookEdit{
+					Embeds: &[]*discordgo.MessageEmbed{embed},
+				})
+				if err != nil {
+					fmt.Printf("Discord interaction expired after %s, creating follow-up message: %v\n",
+						time.Since(startTime).Round(time.Second), err)
+					discordInteractionActive = false
+
+					// Create a follow-up message to continue tracking
+					followUpMessage = createFollowUpMessage(s, i, torrent, elapsed, startTime, torrentName)
+				}
+			} else if followUpMessage != nil {
+				// Update the follow-up message
+				content := formatTorrentProgress(torrent, elapsed, 0)
+				content += fmt.Sprintf("\n\n⏰ **Extended Tracking**\n" +
+					"Original Discord interaction expired after 15 minutes.\n" +
+					"Continuing progress updates here...")
+				embed := createInfoEmbed("📊 Extended Torrent Progress", content)
+				embeds := []*discordgo.MessageEmbed{embed}
+
+				_, err = s.ChannelMessageEditComplex(&discordgo.MessageEdit{
+					Channel: followUpMessage.ChannelID,
+					ID:      followUpMessage.ID,
+					Embeds:  &embeds,
+				})
+				if err != nil {
+					fmt.Printf("Failed to update follow-up message: %v\n", err)
+					followUpMessage = nil // Stop trying to update if it fails
+				}
+			} else {
+				// Log progress to console when no Discord message is available
+				if elapsed%60 == 0 { // Log every minute to avoid spam
+					fmt.Printf("📊 Torrent %s progress: %.1f%% (elapsed: %s)\n",
+						torrentName, torrent.Progress*100, time.Since(startTime).Round(time.Second))
+				}
 			}
 		}
 	}
@@ -314,4 +404,28 @@ func extractHashFromMagnet(magnetURI string) (string, error) {
 	}
 
 	return hash, nil
+}
+
+// createFollowUpMessage creates a new Discord message to continue tracking after interaction expires
+func createFollowUpMessage(s *discordgo.Session, i *discordgo.InteractionCreate, torrent *qbittorrent.Torrent, elapsed int, startTime time.Time, torrentName string) *discordgo.Message {
+	content := formatTorrentProgress(torrent, elapsed, 0)
+	content += fmt.Sprintf("\n\n⏰ **Extended Tracking**\n"+
+		"Original Discord interaction expired after 15 minutes.\n"+
+		"Continuing progress updates here...\n\n"+
+		"**Started:** %s\n"+
+		"**Elapsed:** %s",
+		startTime.Format("2006-01-02 15:04:05"),
+		time.Since(startTime).Round(time.Second))
+
+	embed := createInfoEmbed("📊 Extended Torrent Progress", content)
+
+	// Send a follow-up message to the same channel
+	message, err := s.ChannelMessageSendEmbed(i.ChannelID, embed)
+	if err != nil {
+		fmt.Printf("Failed to create follow-up message: %v\n", err)
+		return nil
+	}
+
+	fmt.Printf("✅ Created follow-up message for torrent %s (Message ID: %s)\n", torrentName, message.ID)
+	return message
 }
