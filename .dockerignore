@@ -1,0 +1,21 @@
+# Build artifacts
+bin/
+releases/
+*.exe
+*.exe~
+*.dll
+*.so
+*.dylib
+
+# Runtime data
+*.log
+*.pid
+seeding_tracking.json
+data/
+
+# Secrets and local config
+.env
+akira.env
+
+# Version control
+.git/

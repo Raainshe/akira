@@ -3,7 +3,7 @@ VERSION ?= $(shell git describe --tags --always --dirty)
 BUILD_TIME = $(shell date -u '+%Y-%m-%d_%H:%M:%S')
 LDFLAGS = -ldflags "-X main.Version=$(VERSION) -X main.BuildTime=$(BUILD_TIME)"
 
-.PHONY: build build-linux build-darwin build-windows install clean
+.PHONY: build build-linux build-darwin build-windows install clean docker-build docker-up docker-down
 
 # Build for current platform
 build:
@@ -47,6 +47,16 @@ release: build-all
 clean:
 	rm -rf bin/ releases/
 
+# Docker
+docker-build:
+	VERSION=$(VERSION) BUILD_TIME=$(BUILD_TIME) docker compose build
+
+docker-up:
+	docker compose up -d --build
+
+docker-down:
+	docker compose down
+
 # Run tests
 test:
 	go test ./...
@@ -75,6 +85,9 @@ help:
 	@echo "  install-user - Install to user directory"
 	@echo "  release      - Create release archives"
 	@echo "  clean        - Clean build artifacts"
+	@echo "  docker-build - Build Docker image"
+	@echo "  docker-up    - Start Akira with docker compose"
+	@echo "  docker-down  - Stop Akira docker compose stack"
 	@echo "  test         - Run tests"
 	@echo "  fmt          - Format code"
 	@echo "  lint         - Lint code"

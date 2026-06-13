@@ -1,0 +1,18 @@
+services:
+  akira:
+    build:
+      context: .
+      args:
+        VERSION: ${VERSION:-dev}
+        BUILD_TIME: ${BUILD_TIME:-unknown}
+    container_name: akira
+    restart: unless-stopped
+    env_file:
+      - .env
+    environment:
+      LOG_FILE: /data/bot_activity.log
+      SEEDING_TRACKING_DATA_FILE: /data/seeding_tracking.json
+    volumes:
+      - ./data:/data
+    extra_hosts:
+      - "host.docker.internal:host-gateway"

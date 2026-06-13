@@ -26,6 +26,10 @@ go.work.sum
 
 # env file
 .env
+akira.env
+
+# Docker runtime data
+data/
 
 # Editor/IDE
 # .idea/

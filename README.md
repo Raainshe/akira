@@ -69,6 +69,30 @@ make build
 make install-user  # or make install for system-wide
 ```
 
+### Docker
+
+Run Akira in a container while connecting to an existing qBittorrent instance on your host or LAN.
+
+```bash
+cp .env.example .env   # set DISCORD_BOT_TOKEN, qBittorrent URL and credentials
+docker compose up -d --build
+docker compose logs -f akira
+```
+
+Or use Makefile shortcuts:
+
+```bash
+make docker-up
+make docker-down
+```
+
+**Configuration notes:**
+
+- Set `QBITTORRENT_URL` to your qBittorrent Web UI (e.g. `http://192.168.0.101:8080` or `http://host.docker.internal:8080` if qBittorrent runs on the Docker host).
+- `QBITTORRENT_*_SAVE_PATH` values must be **qBittorrent's paths** (e.g. `E:\Series` on Windows), not paths inside the container.
+- Logs and seeding state are persisted in `./data`.
+- For Discord disk-space commands to reflect real storage, mount the host download drive into the container and set `DISK_SPACE_CHECK_PATH` to the mount point (see `.env.example`).
+
 ## Setup
 
 1. **Create Discord Application**
