@@ -13,6 +13,7 @@ func HandleHelpCommand(s *discordgo.Session, i *discordgo.InteractionCreate) {
 		"• `/torrents [filter]` - List all torrents with filtering\n" +
 		"• `/add <magnet> [category]` - Add a magnet link with **automatic live progress tracking**\n" +
 		"• `/delete` - **Interactive torrent deletion** - Select from list, confirm deletion\n" +
+		"• `/recategorize` - **Move a torrent** to a different category and save path\n" +
 		"• `/progress <torrent> [duration]` - Show live progress for a specific torrent\n\n" +
 		"**💾 System Information:**\n" +
 		"• `/disk` - Show disk usage with **interactive pie chart visualization**\n" +
@@ -24,6 +25,7 @@ func HandleHelpCommand(s *discordgo.Session, i *discordgo.InteractionCreate) {
 		"• `/torrents filter:downloading` - Show only downloading torrents\n" +
 		"• `/add magnet:?xt=urn:btih:... category:movies` - Add movie torrent with live tracking\n" +
 		"• `/delete` - Opens interactive selection menu for torrent deletion\n" +
+		"• `/recategorize` - Select torrent, pick new category, confirm file move\n" +
 		"• `/progress \"My Movie\" duration:120` - Track progress for 2 minutes\n" +
 		"• `/logs level:error lines:20` - Show last 20 error logs\n\n" +
 		"**🔧 Filter Options:**\n" +

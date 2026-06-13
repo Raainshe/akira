@@ -4,6 +4,7 @@ import (
 	"context"
 	"fmt"
 	"net/url"
+	"path/filepath"
 	"regexp"
 	"sort"
 	"strings"
@@ -440,6 +441,151 @@ func (ts *TorrentService) ResumeTorrents(ctx context.Context, hashes []string) e
 
 	ts.logger.WithField("count", len(hashes)).Info("Torrents resumed successfully")
 	return nil
+}
+
+// RecategorizeResult holds the outcome of a recategorize operation
+type RecategorizeResult struct {
+	Torrent      *qbittorrent.Torrent
+	FilesMoved   bool
+	OldCategory  string
+	NewCategory  string
+	OldSavePath  string
+	NewSavePath  string
+}
+
+// GetTorrentCategory returns the effective category for a torrent
+func (ts *TorrentService) GetTorrentCategory(torrent qbittorrent.Torrent) string {
+	return ts.getTorrentCategory(torrent)
+}
+
+// RecategorizeTorrent changes a torrent's category and moves it to the configured save path
+func (ts *TorrentService) RecategorizeTorrent(ctx context.Context, hash, newCategory string) (*RecategorizeResult, error) {
+	if hash == "" {
+		return nil, fmt.Errorf("hash cannot be empty")
+	}
+
+	if !ts.isValidCategory(newCategory) {
+		return nil, fmt.Errorf("invalid category: %s (valid: %v)", newCategory, ts.config.GetValidCategories())
+	}
+
+	torrent, err := ts.FindTorrentByHash(ctx, hash)
+	if err != nil {
+		return nil, err
+	}
+
+	if torrent.State == qbittorrent.StateMoving {
+		return nil, fmt.Errorf("torrent is currently moving, try again later")
+	}
+
+	currentCategory := ts.getTorrentCategory(*torrent)
+	if currentCategory == newCategory {
+		return nil, fmt.Errorf("torrent is already in category '%s'", newCategory)
+	}
+
+	newSavePath := ts.config.GetSavePathForCategory(newCategory)
+	filesMoved := !pathsEqual(torrent.SavePath, newSavePath)
+
+	ts.logger.WithFields(map[string]interface{}{
+		"hash":             torrent.Hash,
+		"name":             torrent.Name,
+		"old_category":     currentCategory,
+		"new_category":     newCategory,
+		"old_save_path":    torrent.SavePath,
+		"new_save_path":    newSavePath,
+		"files_will_move":  filesMoved,
+	}).Info("Recategorizing torrent")
+
+	shouldPause := torrent.IsDownloading() || torrent.IsSeeding()
+
+	if torrent.AutoTmm {
+		if err := ts.client.SetAutoManagement(ctx, []string{torrent.Hash}, false); err != nil {
+			return nil, fmt.Errorf("failed to disable automatic torrent management: %w", err)
+		}
+	}
+
+	if shouldPause {
+		if err := ts.PauseTorrents(ctx, []string{torrent.Hash}); err != nil {
+			return nil, fmt.Errorf("failed to stop torrent before move: %w", err)
+		}
+	}
+
+	if filesMoved {
+		if err := ts.client.SetLocation(ctx, []string{torrent.Hash}, newSavePath); err != nil {
+			if shouldPause {
+				_ = ts.ResumeTorrents(ctx, []string{torrent.Hash})
+			}
+			return nil, fmt.Errorf("failed to move torrent to new location: %w", err)
+		}
+
+		if err := ts.waitForMoveComplete(ctx, torrent.Hash); err != nil {
+			return nil, err
+		}
+	}
+
+	if err := ts.client.SetCategory(ctx, []string{torrent.Hash}, newCategory); err != nil {
+		return nil, fmt.Errorf("failed to set torrent category: %w", err)
+	}
+
+	if shouldPause {
+		if err := ts.ResumeTorrents(ctx, []string{torrent.Hash}); err != nil {
+			return nil, fmt.Errorf("failed to start torrent after move: %w", err)
+		}
+	}
+
+	updated, err := ts.FindTorrentByHash(ctx, torrent.Hash)
+	if err != nil {
+		return nil, fmt.Errorf("recategorize succeeded but failed to reload torrent: %w", err)
+	}
+
+	ts.logger.WithFields(map[string]interface{}{
+		"hash":         updated.Hash,
+		"name":         updated.Name,
+		"new_category": newCategory,
+		"new_path":     updated.SavePath,
+		"files_moved":  filesMoved,
+	}).Info("Torrent recategorized successfully")
+
+	return &RecategorizeResult{
+		Torrent:     updated,
+		FilesMoved:  filesMoved,
+		OldCategory: currentCategory,
+		NewCategory: newCategory,
+		OldSavePath: torrent.SavePath,
+		NewSavePath: newSavePath,
+	}, nil
+}
+
+func (ts *TorrentService) waitForMoveComplete(ctx context.Context, hash string) error {
+	const pollInterval = 2 * time.Second
+	const moveTimeout = 10 * time.Minute
+
+	deadline := time.Now().Add(moveTimeout)
+	for time.Now().Before(deadline) {
+		torrent, err := ts.FindTorrentByHash(ctx, hash)
+		if err != nil {
+			return fmt.Errorf("failed to check move status: %w", err)
+		}
+		if torrent.State != qbittorrent.StateMoving {
+			return nil
+		}
+
+		select {
+		case <-ctx.Done():
+			return ctx.Err()
+		case <-time.After(pollInterval):
+		}
+	}
+
+	return fmt.Errorf("timed out waiting for torrent move to complete after %s", moveTimeout)
+}
+
+func pathsEqual(a, b string) bool {
+	normalize := func(p string) string {
+		p = strings.TrimSpace(p)
+		p = strings.TrimRight(p, `/\`)
+		return strings.ToLower(filepath.Clean(p))
+	}
+	return normalize(a) == normalize(b)
 }
 
 // GetTorrentStats calculates statistics for all torrents

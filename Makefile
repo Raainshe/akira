@@ -77,7 +77,7 @@ docker-prod-logs:
 
 # Generate fake torrents for local testing (see scripts/genfake/main.go)
 gen-fake-torrents:
-	go run ./scripts/genfake -count 3 -out testdata/fake-torrents
+	go run ./scripts/genfake -count 100 -category mixed -clean -out testdata/fake-torrents
 
 # Run tests
 test:

@@ -12,7 +12,8 @@ const (
 	StateError              TorrentState = "error"              // Some error occurred, applies to paused torrents
 	StateMissingFiles       TorrentState = "missingFiles"       // Torrent data files is missing
 	StateUploading          TorrentState = "uploading"          // Torrent is being seeded and data is being transferred
-	StatePausedUP           TorrentState = "pausedUP"           // Torrent is paused and has finished downloading
+	StatePausedUP           TorrentState = "pausedUP"           // Torrent is paused and has finished downloading (legacy)
+	StateStoppedUP          TorrentState = "stoppedUP"          // Torrent is stopped and has finished downloading (qBittorrent 5+)
 	StateQueuedUP           TorrentState = "queuedUP"           // Queuing is enabled and torrent is queued for upload
 	StateStalledUP          TorrentState = "stalledUP"          // Torrent is being seeded, but no connection were made
 	StateCheckingUP         TorrentState = "checkingUP"         // Torrent has finished downloading and is being checked
@@ -20,7 +21,8 @@ const (
 	StateAllocating         TorrentState = "allocating"         // Torrent is allocating disk space for download
 	StateDownloading        TorrentState = "downloading"        // Torrent is being downloaded and data is being transferred
 	StateMetaDL             TorrentState = "metaDL"             // Torrent has just started downloading and is fetching metadata
-	StatePausedDL           TorrentState = "pausedDL"           // Torrent is paused and has NOT finished downloading
+	StatePausedDL           TorrentState = "pausedDL"           // Torrent is paused and has NOT finished downloading (legacy)
+	StateStoppedDL          TorrentState = "stoppedDL"          // Torrent is stopped and has NOT finished downloading (qBittorrent 5+)
 	StateQueuedDL           TorrentState = "queuedDL"           // Queuing is enabled and torrent is queued for download
 	StateStalledDL          TorrentState = "stalledDL"          // Torrent is being downloaded, but no connection were made
 	StateCheckingDL         TorrentState = "checkingDL"         // Same as checkingUP, but torrent has NOT finished downloading
@@ -252,9 +254,10 @@ func (t *Torrent) IsCompleted() bool {
 	return t.Progress >= 1.0
 }
 
-// IsPaused returns true if the torrent is paused
+// IsPaused returns true if the torrent is paused or stopped
 func (t *Torrent) IsPaused() bool {
-	return t.State == StatePausedDL || t.State == StatePausedUP
+	return t.State == StatePausedDL || t.State == StatePausedUP ||
+		t.State == StateStoppedDL || t.State == StateStoppedUP
 }
 
 // IsActive returns true if the torrent is actively transferring data

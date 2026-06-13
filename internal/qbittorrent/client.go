@@ -4,6 +4,7 @@ import (
 	"bytes"
 	"context"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"io"
 	"mime/multipart"
@@ -425,32 +426,24 @@ func (c *Client) DeleteTorrents(ctx context.Context, hashes []string, deleteFile
 	return nil
 }
 
-// PauseTorrents pauses torrents in qBittorrent
+// PauseTorrents pauses torrents in qBittorrent.
+// qBittorrent 5+ uses /stop; older versions use /pause.
 func (c *Client) PauseTorrents(ctx context.Context, hashes []string) error {
-	if err := c.ensureAuthenticated(ctx); err != nil {
-		return err
-	}
-
-	c.logger.WithFields(map[string]interface{}{
-		"hashes": hashes,
-		"count":  len(hashes),
-	}).Info("Pausing torrents")
-
-	data := url.Values{}
-	data.Set("hashes", strings.Join(hashes, "|"))
-
-	err := c.makeRequest(ctx, "POST", "/api/v2/torrents/pause", data, nil)
-	if err != nil {
-		c.logger.WithError(err).Error("Failed to pause torrents")
-		return fmt.Errorf("failed to pause torrents: %w", err)
-	}
-
-	c.logger.WithField("count", len(hashes)).Info("Torrents paused successfully")
-	return nil
+	return c.torrentTransferAction(ctx, hashes, "/api/v2/torrents/stop", "/api/v2/torrents/pause", "Pausing torrents", "Torrents paused successfully")
 }
 
-// StopTorrents stops torrents in qBittorrent (completely stops them)
+// StopTorrents stops torrents in qBittorrent (alias for PauseTorrents)
 func (c *Client) StopTorrents(ctx context.Context, hashes []string) error {
+	return c.PauseTorrents(ctx, hashes)
+}
+
+// ResumeTorrents resumes torrents in qBittorrent.
+// qBittorrent 5+ uses /start; older versions use /resume.
+func (c *Client) ResumeTorrents(ctx context.Context, hashes []string) error {
+	return c.torrentTransferAction(ctx, hashes, "/api/v2/torrents/start", "/api/v2/torrents/resume", "Resuming torrents", "Torrents resumed successfully")
+}
+
+func (c *Client) torrentTransferAction(ctx context.Context, hashes []string, primaryEndpoint, fallbackEndpoint, startMsg, successMsg string) error {
 	if err := c.ensureAuthenticated(ctx); err != nil {
 		return err
 	}
@@ -458,42 +451,103 @@ func (c *Client) StopTorrents(ctx context.Context, hashes []string) error {
 	c.logger.WithFields(map[string]interface{}{
 		"hashes": hashes,
 		"count":  len(hashes),
-	}).Info("Stopping torrents")
+	}).Info(startMsg)
 
 	data := url.Values{}
 	data.Set("hashes", strings.Join(hashes, "|"))
 
-	err := c.makeRequest(ctx, "POST", "/api/v2/torrents/stop", data, nil)
+	err := c.makeRequest(ctx, "POST", primaryEndpoint, data, nil)
 	if err != nil {
-		c.logger.WithError(err).Error("Failed to stop torrents")
-		return fmt.Errorf("failed to stop torrents: %w", err)
+		var apiErr *APIError
+		if errors.As(err, &apiErr) && apiErr.Code == http.StatusNotFound && fallbackEndpoint != "" {
+			c.logger.WithField("fallback", fallbackEndpoint).Debug("Primary torrent action endpoint unavailable, trying fallback")
+			err = c.makeRequest(ctx, "POST", fallbackEndpoint, data, nil)
+		}
+		if err != nil {
+			c.logger.WithError(err).Error(startMsg + " failed")
+			return fmt.Errorf("%s: %w", strings.ToLower(startMsg), err)
+		}
 	}
 
-	c.logger.WithField("count", len(hashes)).Info("Torrents stopped successfully")
+	c.logger.WithField("count", len(hashes)).Info(successMsg)
 	return nil
 }
 
-// ResumeTorrents resumes torrents in qBittorrent
-func (c *Client) ResumeTorrents(ctx context.Context, hashes []string) error {
+// SetCategory sets the category for torrents in qBittorrent
+func (c *Client) SetCategory(ctx context.Context, hashes []string, category string) error {
+	if err := c.ensureAuthenticated(ctx); err != nil {
+		return err
+	}
+
+	c.logger.WithFields(map[string]interface{}{
+		"hashes":   hashes,
+		"category": category,
+		"count":    len(hashes),
+	}).Info("Setting torrent category")
+
+	data := url.Values{}
+	data.Set("hashes", strings.Join(hashes, "|"))
+	data.Set("category", category)
+
+	err := c.makeRequest(ctx, "POST", "/api/v2/torrents/setCategory", data, nil)
+	if err != nil {
+		c.logger.WithError(err).Error("Failed to set torrent category")
+		return fmt.Errorf("failed to set torrent category: %w", err)
+	}
+
+	c.logger.WithField("count", len(hashes)).Info("Torrent category set successfully")
+	return nil
+}
+
+// SetLocation moves torrent content to a new save path in qBittorrent
+func (c *Client) SetLocation(ctx context.Context, hashes []string, location string) error {
+	if err := c.ensureAuthenticated(ctx); err != nil {
+		return err
+	}
+
+	c.logger.WithFields(map[string]interface{}{
+		"hashes":   hashes,
+		"location": location,
+		"count":    len(hashes),
+	}).Info("Setting torrent location")
+
+	data := url.Values{}
+	data.Set("hashes", strings.Join(hashes, "|"))
+	data.Set("location", location)
+
+	err := c.makeRequest(ctx, "POST", "/api/v2/torrents/setLocation", data, nil)
+	if err != nil {
+		c.logger.WithError(err).Error("Failed to set torrent location")
+		return fmt.Errorf("failed to set torrent location: %w", err)
+	}
+
+	c.logger.WithField("count", len(hashes)).Info("Torrent location set successfully")
+	return nil
+}
+
+// SetAutoManagement enables or disables automatic torrent management for torrents
+func (c *Client) SetAutoManagement(ctx context.Context, hashes []string, enable bool) error {
 	if err := c.ensureAuthenticated(ctx); err != nil {
 		return err
 	}
 
 	c.logger.WithFields(map[string]interface{}{
 		"hashes": hashes,
+		"enable": enable,
 		"count":  len(hashes),
-	}).Info("Resuming torrents")
+	}).Info("Setting torrent auto management")
 
 	data := url.Values{}
 	data.Set("hashes", strings.Join(hashes, "|"))
+	data.Set("enable", strconv.FormatBool(enable))
 
-	err := c.makeRequest(ctx, "POST", "/api/v2/torrents/resume", data, nil)
+	err := c.makeRequest(ctx, "POST", "/api/v2/torrents/setAutoManagement", data, nil)
 	if err != nil {
-		c.logger.WithError(err).Error("Failed to resume torrents")
-		return fmt.Errorf("failed to resume torrents: %w", err)
+		c.logger.WithError(err).Error("Failed to set torrent auto management")
+		return fmt.Errorf("failed to set torrent auto management: %w", err)
 	}
 
-	c.logger.WithField("count", len(hashes)).Info("Torrents resumed successfully")
+	c.logger.WithField("count", len(hashes)).Info("Torrent auto management set successfully")
 	return nil
 }
 

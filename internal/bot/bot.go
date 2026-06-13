@@ -113,6 +113,8 @@ func (b *Bot) handleSlashCommand(s *discordgo.Session, i *discordgo.InteractionC
 		commands.HandleAddCommand(s, i, b.torrentService, b.seedingService, b.config)
 	case "delete":
 		commands.HandleDeleteCommand(s, i, b.torrentService, b.seedingService)
+	case "recategorize":
+		commands.HandleRecategorizeCommand(s, i, b.torrentService, b.config)
 	case "progress":
 		commands.HandleProgressCommand(s, i, b.torrentService)
 	case "disk":
@@ -141,11 +143,21 @@ func (b *Bot) handleComponentInteraction(s *discordgo.Session, i *discordgo.Inte
 		commands.HandleDeleteTorrentSelect(s, i, b.torrentService, b.seedingService)
 	case "delete_cancel":
 		commands.HandleDeleteCancel(s, i, b.torrentService, b.seedingService)
+	case "recategorize_torrent_select":
+		commands.HandleRecategorizeTorrentSelect(s, i, b.torrentService)
+	case "recategorize_cancel":
+		commands.HandleRecategorizeCancel(s, i)
 	default:
 		if strings.HasPrefix(data.CustomID, "delete_page|") {
 			commands.HandleDeletePagination(s, i, b.torrentService, b.seedingService)
 		} else if strings.HasPrefix(data.CustomID, "delete_confirm|") {
 			commands.HandleDeleteConfirm(s, i, b.torrentService, b.seedingService)
+		} else if strings.HasPrefix(data.CustomID, "recategorize_page|") {
+			commands.HandleRecategorizePagination(s, i, b.torrentService)
+		} else if strings.HasPrefix(data.CustomID, "recategorize_category_select|") {
+			commands.HandleRecategorizeCategorySelect(s, i, b.torrentService, b.config)
+		} else if strings.HasPrefix(data.CustomID, "recategorize_confirm|") {
+			commands.HandleRecategorizeConfirm(s, i, b.torrentService)
 		} else {
 			b.logger.Warn("Unknown component interaction", map[string]interface{}{
 				"custom_id": data.CustomID,
@@ -202,6 +214,10 @@ func (b *Bot) RegisterCommands() error {
 		{
 			Name:        "delete",
 			Description: "Delete torrents - select from available torrents",
+		},
+		{
+			Name:        "recategorize",
+			Description: "Move a torrent to a different category and save path",
 		},
 		{
 			Name:        "disk",
