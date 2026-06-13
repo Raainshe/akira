@@ -1,0 +1,18 @@
+# Development overlay: live reload via Air. Use with:
+#   docker compose -f docker-compose.yml -f docker-compose.dev.yml up --build
+# or: make docker-dev
+services:
+  akira:
+    build:
+      context: .
+      dockerfile: Dockerfile.dev
+    restart: "no"
+    entrypoint: ["docker-entrypoint-dev.sh"]
+    command: ["air", "-c", ".air.toml"]
+    volumes:
+      - .:/app
+      - ./data:/data
+      - go-mod-cache:/go/pkg/mod
+
+volumes:
+  go-mod-cache:

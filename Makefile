@@ -3,7 +3,7 @@ VERSION ?= $(shell git describe --tags --always --dirty)
 BUILD_TIME = $(shell date -u '+%Y-%m-%d_%H:%M:%S')
 LDFLAGS = -ldflags "-X main.Version=$(VERSION) -X main.BuildTime=$(BUILD_TIME)"
 
-.PHONY: build build-linux build-darwin build-windows install clean docker-build docker-up docker-down
+.PHONY: build build-linux build-darwin build-windows install clean docker-build docker-up docker-down docker-dev docker-dev-down gen-fake-torrents
 
 # Build for current platform
 build:
@@ -57,6 +57,17 @@ docker-up:
 docker-down:
 	docker compose down
 
+# Dev stack with Air live reload (source mounted; uses docker-compose.dev.yml overlay)
+docker-dev:
+	docker compose -f docker-compose.yml -f docker-compose.dev.yml up --build -d
+
+docker-dev-down:
+	docker compose -f docker-compose.yml -f docker-compose.dev.yml down
+
+# Generate fake torrents for local testing (see scripts/genfake/main.go)
+gen-fake-torrents:
+	go run ./scripts/genfake -count 3 -out testdata/fake-torrents
+
 # Run tests
 test:
 	go test ./...
@@ -85,9 +96,12 @@ help:
 	@echo "  install-user - Install to user directory"
 	@echo "  release      - Create release archives"
 	@echo "  clean        - Clean build artifacts"
-	@echo "  docker-build - Build Docker image"
-	@echo "  docker-up    - Start Akira with docker compose"
-	@echo "  docker-down  - Stop Akira docker compose stack"
+	@echo "  docker-build    - Build production Docker image"
+	@echo "  docker-up       - Start Akira (production image, detached)"
+	@echo "  docker-down     - Stop production docker compose stack"
+	@echo "  docker-dev      - Start dev stack with Air live reload (detached)"
+	@echo "  docker-dev-down - Stop dev docker compose stack"
+	@echo "  gen-fake-torrents - Generate fake .torrent files and magnets"
 	@echo "  test         - Run tests"
 	@echo "  fmt          - Format code"
 	@echo "  lint         - Lint code"
