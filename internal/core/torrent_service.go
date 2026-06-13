@@ -226,22 +226,27 @@ func (ts *TorrentService) AddMagnet(ctx context.Context, request *AddTorrentRequ
 	}
 
 	// Add the magnet link
-	err := ts.client.AddMagnet(ctx, request.MagnetURI, qbitOptions)
+	addResult, err := ts.client.AddMagnet(ctx, request.MagnetURI, qbitOptions)
 	if err != nil {
 		ts.logger.WithError(err).Error("Failed to add magnet link")
 		return nil, fmt.Errorf("failed to add magnet link: %w", err)
 	}
 
-	// Extract hash from magnet URI to find the added torrent
-	hash, err := ts.extractHashFromMagnet(request.MagnetURI)
-	if err != nil {
-		ts.logger.WithError(err).Warn("Failed to extract hash from magnet URI")
-		// Return success but without torrent info
-		ts.logger.WithFields(map[string]interface{}{
-			"category":  request.Category,
-			"save_path": savePath,
-		}).Info("Magnet link added successfully")
-		return nil, nil
+	// Prefer hash returned by qBittorrent 5+; fall back to magnet URI parsing.
+	var hash string
+	if addResult != nil && len(addResult.AddedTorrentIDs) > 0 {
+		hash = addResult.AddedTorrentIDs[0]
+	} else {
+		var extractErr error
+		hash, extractErr = ts.extractHashFromMagnet(request.MagnetURI)
+		if extractErr != nil {
+			ts.logger.WithError(extractErr).Warn("Failed to extract hash from magnet URI")
+			ts.logger.WithFields(map[string]interface{}{
+				"category":  request.Category,
+				"save_path": savePath,
+			}).Info("Magnet link added successfully")
+			return nil, nil
+		}
 	}
 
 	// Wait a moment for qBittorrent to process the torrent

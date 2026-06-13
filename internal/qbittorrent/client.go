@@ -268,10 +268,62 @@ func (c *Client) GetTorrentProperties(ctx context.Context, hash string) (*Torren
 	return &properties, nil
 }
 
+// parseAddTorrentResponse interprets qBittorrent /torrents/add responses (legacy text or qBittorrent 5+ JSON).
+func parseAddTorrentResponse(statusCode int, body []byte) (*AddTorrentResponse, error) {
+	respText := strings.TrimSpace(string(body))
+
+	if statusCode == http.StatusConflict {
+		return nil, &APIError{
+			Code:    statusCode,
+			Message: "qBittorrent Error",
+			Details: respText,
+		}
+	}
+
+	if respText == "" || respText == "Ok." {
+		return nil, nil
+	}
+
+	if respText == "Fails." {
+		return nil, &APIError{
+			Code:    statusCode,
+			Message: "qBittorrent Error",
+			Details: respText,
+		}
+	}
+
+	if strings.HasPrefix(respText, "{") {
+		var parsed AddTorrentResponse
+		if err := json.Unmarshal(body, &parsed); err != nil {
+			return nil, &APIError{
+				Code:    statusCode,
+				Message: "qBittorrent Error",
+				Details: respText,
+			}
+		}
+
+		if parsed.SuccessCount > 0 || parsed.PendingCount > 0 {
+			return &parsed, nil
+		}
+
+		return nil, &APIError{
+			Code:    statusCode,
+			Message: "qBittorrent Error",
+			Details: respText,
+		}
+	}
+
+	return nil, &APIError{
+		Code:    statusCode,
+		Message: "qBittorrent Error",
+		Details: respText,
+	}
+}
+
 // AddMagnet adds a magnet link to qBittorrent
-func (c *Client) AddMagnet(ctx context.Context, magnetURI string, options AddTorrentRequest) error {
+func (c *Client) AddMagnet(ctx context.Context, magnetURI string, options AddTorrentRequest) (*AddTorrentResponse, error) {
 	if err := c.ensureAuthenticated(ctx); err != nil {
-		return err
+		return nil, err
 	}
 
 	// Mask magnet URI for logging (show only first 50 chars)
@@ -342,21 +394,21 @@ func (c *Client) AddMagnet(ctx context.Context, magnetURI string, options AddTor
 	// Set content type for multipart form
 	req, err := http.NewRequestWithContext(ctx, "POST", c.baseURL.ResolveReference(&url.URL{Path: "/api/v2/torrents/add"}).String(), &buf)
 	if err != nil {
-		return fmt.Errorf("failed to create request: %w", err)
+		return nil, fmt.Errorf("failed to create request: %w", err)
 	}
 	req.Header.Set("Content-Type", writer.FormDataContentType())
 
 	resp, err := c.httpClient.Do(req)
 	if err != nil {
 		c.logger.WithError(err).Error("Failed to add magnet link")
-		return fmt.Errorf("failed to add magnet link: %w", err)
+		return nil, fmt.Errorf("failed to add magnet link: %w", err)
 	}
 	defer resp.Body.Close()
 
 	// Read response body
 	respBody, err := io.ReadAll(resp.Body)
 	if err != nil {
-		return fmt.Errorf("failed to read response body: %w", err)
+		return nil, fmt.Errorf("failed to read response body: %w", err)
 	}
 
 	c.logger.WithFields(map[string]interface{}{
@@ -371,33 +423,24 @@ func (c *Client) AddMagnet(ctx context.Context, magnetURI string, options AddTor
 			"status_code": resp.StatusCode,
 			"response":    string(respBody),
 		}).Error("Add magnet request failed")
-		return &APIError{
+		return nil, &APIError{
 			Code:    resp.StatusCode,
 			Message: resp.Status,
 			Details: string(respBody),
 		}
 	}
 
-	// Check for qBittorrent errors in response body (even with 200 status)
-	// qBittorrent returns error messages in the response body
-	if len(respBody) > 0 {
-		respText := strings.TrimSpace(string(respBody))
-		if respText != "" && respText != "Ok." {
-			// This is an error response from qBittorrent
-			c.logger.WithFields(map[string]interface{}{
-				"status_code": resp.StatusCode,
-				"response":    respText,
-			}).Error("qBittorrent returned error in response body")
-			return &APIError{
-				Code:    resp.StatusCode,
-				Message: "qBittorrent Error",
-				Details: respText,
-			}
-		}
+	result, err := parseAddTorrentResponse(resp.StatusCode, respBody)
+	if err != nil {
+		c.logger.WithFields(map[string]interface{}{
+			"status_code": resp.StatusCode,
+			"response":    strings.TrimSpace(string(respBody)),
+		}).Error("qBittorrent returned error in response body")
+		return nil, err
 	}
 
 	c.logger.Info("Magnet link added successfully")
-	return nil
+	return result, nil
 }
 
 // DeleteTorrents deletes torrents from qBittorrent
