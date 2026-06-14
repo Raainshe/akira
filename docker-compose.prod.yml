@@ -23,7 +23,7 @@ services:
       - "host.docker.internal:host-gateway"
 
   watchtower:
-    image: containrrr/watchtower
+    image: ghcr.io/nickfedor/watchtower:latest
     container_name: watchtower
     restart: unless-stopped
     volumes:

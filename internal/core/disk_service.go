@@ -2,8 +2,12 @@ package core
 
 import (
 	"context"
+	"errors"
 	"fmt"
+	"net"
+	"net/http"
 	"path/filepath"
+	"strings"
 	"time"
 
 	"github.com/raainshe/akira/internal/cache"
@@ -14,9 +18,10 @@ import (
 
 // DiskService provides cross-platform disk space operations
 type DiskService struct {
-	config *config.Config
-	cache  *cache.CacheManager
-	logger *logging.Logger
+	config   *config.Config
+	cache    *cache.CacheManager
+	qbClient *qbittorrent.Client
+	logger   *logging.Logger
 }
 
 // DiskInfo represents disk space information for a path
@@ -33,6 +38,14 @@ type DiskInfo struct {
 	LastChecked time.Time `json:"last_checked"` // When this info was last updated
 }
 
+// DriveDiskInfo represents disk space for a unique drive/volume
+type DriveDiskInfo struct {
+	DriveID string           `json:"drive_id"`
+	Free    int64            `json:"free"`
+	Health  DiskHealthStatus `json:"health"`
+	Paths   []string         `json:"paths"`
+}
+
 // DiskHealthStatus represents the health status of disk space
 type DiskHealthStatus string
 
@@ -45,28 +58,30 @@ const (
 
 // DiskSummary represents a summary of all monitored disk spaces
 type DiskSummary struct {
-	Paths         map[string]*DiskInfo `json:"paths"`          // Path -> DiskInfo mapping
-	TotalSpace    int64                `json:"total_space"`    // Sum of all total space
-	TotalUsed     int64                `json:"total_used"`     // Sum of all used space
-	TotalFree     int64                `json:"total_free"`     // Sum of all free space
-	WorstHealth   DiskHealthStatus     `json:"worst_health"`   // Worst health status across all paths
-	WarningPaths  []string             `json:"warning_paths"`  // Paths with warnings
-	CriticalPaths []string             `json:"critical_paths"` // Paths with critical status
-	LastUpdated   time.Time            `json:"last_updated"`   // When this summary was generated
+	Drives        map[string]*DriveDiskInfo `json:"drives"`
+	DriveOrder    []string                  `json:"drive_order"`
+	Paths         map[string]*DiskInfo      `json:"paths"`
+	TotalSpace    int64                     `json:"total_space"`
+	TotalUsed     int64                     `json:"total_used"`
+	TotalFree     int64                     `json:"total_free"`
+	WorstHealth   DiskHealthStatus          `json:"worst_health"`
+	WarningPaths  []string                  `json:"warning_paths"`
+	CriticalPaths []string                  `json:"critical_paths"`
+	LastUpdated   time.Time                 `json:"last_updated"`
 }
 
 // NewDiskService creates a new disk service instance
-func NewDiskService(config *config.Config, cache *cache.CacheManager) *DiskService {
+func NewDiskService(config *config.Config, cache *cache.CacheManager, qbClient *qbittorrent.Client) *DiskService {
 	return &DiskService{
-		config: config,
-		cache:  cache,
-		logger: logging.GetCoreLogger(),
+		config:   config,
+		cache:    cache,
+		qbClient: qbClient,
+		logger:   logging.GetCoreLogger(),
 	}
 }
 
 // GetDiskSpace retrieves disk space information for a specific path
 func (ds *DiskService) GetDiskSpace(ctx context.Context, path string) (*DiskInfo, error) {
-	// Validate and normalize path
 	normalizedPath, err := ds.normalizePath(path)
 	if err != nil {
 		ds.logger.WithError(err).WithField("path", path).Error("Failed to normalize path")
@@ -75,34 +90,23 @@ func (ds *DiskService) GetDiskSpace(ctx context.Context, path string) (*DiskInfo
 
 	ds.logger.WithField("path", normalizedPath).Debug("Getting disk space information")
 
-	// Try to get from cache first
+	cacheKey := ds.diskCacheKey(normalizedPath)
 	if ds.cache != nil {
-		if cachedDisk, found := ds.cache.GetDiskSpace(normalizedPath); found {
+		if cachedDisk, found := ds.cache.GetDiskSpace(cacheKey); found {
 			ds.logger.WithField("path", normalizedPath).Debug("Using cached disk space information")
-			return &DiskInfo{
-				Path:        normalizedPath,
-				Total:       cachedDisk.Total,
-				Used:        cachedDisk.Used,
-				Free:        cachedDisk.Free,
-				Available:   cachedDisk.Free, // For cache compatibility
-				UsedPercent: ds.calculatePercentage(cachedDisk.Used, cachedDisk.Total),
-				FreePercent: ds.calculatePercentage(cachedDisk.Free, cachedDisk.Total),
-				LastChecked: cachedDisk.UpdatedAt,
-			}, nil
+			return ds.diskInfoFromCache(normalizedPath, cachedDisk), nil
 		}
 	}
 
-	// Get fresh disk space information
-	diskInfo, err := ds.getDiskSpacePlatform(normalizedPath)
+	diskInfo, err := ds.fetchDiskSpace(ctx, normalizedPath, freeSpaceQueryPath(normalizedPath))
 	if err != nil {
 		ds.logger.WithError(err).WithField("path", normalizedPath).Error("Failed to get disk space")
 		return nil, fmt.Errorf("failed to get disk space for %s: %w", normalizedPath, err)
 	}
 
-	// Cache the result
 	if ds.cache != nil {
-		cacheInfo := cache.NewDiskSpaceInfo(normalizedPath, diskInfo.Total, diskInfo.Used, diskInfo.Free)
-		ds.cache.SetDiskSpace(normalizedPath, cacheInfo)
+		cacheInfo := cache.NewDiskSpaceInfo(cacheKey, diskInfo.Total, diskInfo.Used, diskInfo.Free)
+		ds.cache.SetDiskSpace(cacheKey, cacheInfo)
 	}
 
 	ds.logger.WithFields(map[string]interface{}{
@@ -116,11 +120,12 @@ func (ds *DiskService) GetDiskSpace(ctx context.Context, path string) (*DiskInfo
 	return diskInfo, nil
 }
 
-// GetAllDiskSpaces retrieves disk space for all configured torrent paths
+// GetAllDiskSpaces retrieves disk space grouped by unique drive/volume
 func (ds *DiskService) GetAllDiskSpaces(ctx context.Context) (*DiskSummary, error) {
 	ds.logger.Debug("Getting disk space for all configured paths")
 
 	summary := &DiskSummary{
+		Drives:        make(map[string]*DriveDiskInfo),
 		Paths:         make(map[string]*DiskInfo),
 		WorstHealth:   DiskHealthGood,
 		WarningPaths:  []string{},
@@ -128,55 +133,58 @@ func (ds *DiskService) GetAllDiskSpaces(ctx context.Context) (*DiskSummary, erro
 		LastUpdated:   time.Now(),
 	}
 
-	// Get all configured paths
-	paths := ds.getAllConfiguredPaths()
+	driveGroups, driveOrder, err := ds.groupConfiguredPathsByDrive()
+	if err != nil {
+		return nil, err
+	}
 
-	// Track unique drives/filesystems to avoid counting the same drive multiple times
-	seenDrives := make(map[string]*DiskInfo)
+	for _, driveID := range driveOrder {
+		pathsOnDrive := driveGroups[driveID]
+		queryPath := freeSpaceQueryPath(pathsOnDrive[0])
 
-	for _, path := range paths {
-		diskInfo, err := ds.GetDiskSpace(ctx, path)
+		diskInfo, err := ds.fetchDiskSpace(ctx, driveID, queryPath)
 		if err != nil {
-			ds.logger.WithError(err).WithField("path", path).Warn("Failed to get disk space for configured path")
+			ds.logger.WithError(err).WithField("drive", driveID).Warn("Failed to get disk space for drive")
 			continue
 		}
 
-		// Always store individual path info
-		summary.Paths[path] = diskInfo
-
-		// Get drive identifier for this path
-		driveID, err := ds.getDriveIdentifier(path)
-		if err != nil {
-			ds.logger.WithError(err).WithField("path", path).Warn("Failed to get drive identifier, skipping from totals")
-			// Still check health status even if we can't identify the drive
-		} else {
-			// Only add to totals if we haven't seen this drive before
-			if _, seen := seenDrives[driveID]; !seen {
-				seenDrives[driveID] = diskInfo
-				summary.TotalSpace += diskInfo.Total
-				summary.TotalUsed += diskInfo.Used
-				summary.TotalFree += diskInfo.Free
-			}
+		health := ds.getDiskHealthStatus(diskInfo)
+		summary.Drives[driveID] = &DriveDiskInfo{
+			DriveID: driveID,
+			Free:    diskInfo.Free,
+			Health:  health,
+			Paths:   append([]string(nil), pathsOnDrive...),
 		}
 
-		// Check health status (always check, regardless of drive tracking)
-		health := ds.getDiskHealthStatus(diskInfo)
+		summary.TotalFree += diskInfo.Free
+		if diskInfo.Total > 0 {
+			summary.TotalSpace += diskInfo.Total
+			summary.TotalUsed += diskInfo.Used
+		}
+
+		for _, path := range pathsOnDrive {
+			pathInfo := *diskInfo
+			pathInfo.Path = path
+			summary.Paths[path] = &pathInfo
+		}
+
 		if ds.isWorseHealth(health, summary.WorstHealth) {
 			summary.WorstHealth = health
 		}
 
-		// Add to warning/critical lists
 		switch health {
 		case DiskHealthWarning:
-			summary.WarningPaths = append(summary.WarningPaths, path)
+			summary.WarningPaths = append(summary.WarningPaths, driveID)
 		case DiskHealthCritical, DiskHealthDanger:
-			summary.CriticalPaths = append(summary.CriticalPaths, path)
+			summary.CriticalPaths = append(summary.CriticalPaths, driveID)
 		}
 	}
 
+	summary.DriveOrder = driveOrder
+
 	ds.logger.WithFields(map[string]interface{}{
 		"paths_checked":  len(summary.Paths),
-		"unique_drives":  len(seenDrives),
+		"unique_drives":  len(summary.Drives),
 		"total_space":    qbittorrent.FormatBytes(summary.TotalSpace),
 		"total_free":     qbittorrent.FormatBytes(summary.TotalFree),
 		"worst_health":   summary.WorstHealth,
@@ -187,31 +195,24 @@ func (ds *DiskService) GetAllDiskSpaces(ctx context.Context) (*DiskSummary, erro
 	return summary, nil
 }
 
-// CheckDiskHealth performs a health check on all configured disk paths
+// CheckDiskHealth performs a health check on all configured drives
 func (ds *DiskService) CheckDiskHealth(ctx context.Context) (map[string]DiskHealthStatus, error) {
 	ds.logger.Debug("Performing disk health check")
 
-	healthStatus := make(map[string]DiskHealthStatus)
-	paths := ds.getAllConfiguredPaths()
+	summary, err := ds.GetAllDiskSpaces(ctx)
+	if err != nil {
+		return nil, err
+	}
 
-	for _, path := range paths {
-		diskInfo, err := ds.GetDiskSpace(ctx, path)
-		if err != nil {
-			ds.logger.WithError(err).WithField("path", path).Warn("Failed to check disk health for path")
-			healthStatus[path] = DiskHealthDanger // Assume worst case if we can't check
-			continue
-		}
-
-		health := ds.getDiskHealthStatus(diskInfo)
-		healthStatus[path] = health
-
-		// Log warnings for problematic paths
-		if health != DiskHealthGood {
+	healthStatus := make(map[string]DiskHealthStatus, len(summary.Drives))
+	for driveID, drive := range summary.Drives {
+		healthStatus[driveID] = drive.Health
+		if drive.Health != DiskHealthGood {
 			ds.logger.WithFields(map[string]interface{}{
-				"path":         path,
-				"health":       health,
-				"free_space":   qbittorrent.FormatBytes(diskInfo.Free),
-				"free_percent": fmt.Sprintf("%.1f%%", diskInfo.FreePercent),
+				"drive":      driveID,
+				"health":     drive.Health,
+				"free_space": qbittorrent.FormatBytes(drive.Free),
+				"paths":      strings.Join(drive.Paths, ", "),
 			}).Warn("Disk space health issue detected")
 		}
 	}
@@ -222,6 +223,15 @@ func (ds *DiskService) CheckDiskHealth(ctx context.Context) (map[string]DiskHeal
 
 // FormatDiskInfo formats disk information into a human-readable string
 func (ds *DiskService) FormatDiskInfo(diskInfo *DiskInfo) string {
+	if diskInfo.Total == 0 {
+		return fmt.Sprintf(
+			"Path: %s\nAvailable: %s\nHealth: %s",
+			diskInfo.Path,
+			qbittorrent.FormatBytes(diskInfo.Free),
+			ds.getDiskHealthStatus(diskInfo),
+		)
+	}
+
 	return fmt.Sprintf(
 		"Path: %s\n"+
 			"Total: %s\n"+
@@ -236,27 +246,20 @@ func (ds *DiskService) FormatDiskInfo(diskInfo *DiskInfo) string {
 	)
 }
 
-// Platform-specific implementations are in disk_service_unix.go and disk_service_windows.go
-
-// getDriveIdentifier returns a unique identifier for the drive/filesystem containing the path
-// This is used to avoid counting the same drive multiple times when calculating totals
-// Platform-specific implementation in disk_service_unix.go and disk_service_windows.go
 func (ds *DiskService) getDriveIdentifier(path string) (string, error) {
 	return ds.getDriveIdentifierPlatform(path)
 }
 
-// Helper methods
-
-// normalizePath normalizes a path for the current operating system
 func (ds *DiskService) normalizePath(path string) (string, error) {
 	if path == "" {
 		return "", fmt.Errorf("path cannot be empty")
 	}
 
-	// Clean the path
 	cleanPath := filepath.Clean(path)
+	if isWindowsPath(cleanPath) {
+		return cleanPath, nil
+	}
 
-	// Convert to absolute path if relative
 	absPath, err := filepath.Abs(cleanPath)
 	if err != nil {
 		return "", fmt.Errorf("failed to convert to absolute path: %w", err)
@@ -265,11 +268,9 @@ func (ds *DiskService) normalizePath(path string) (string, error) {
 	return absPath, nil
 }
 
-// getAllConfiguredPaths returns all configured torrent save paths
 func (ds *DiskService) getAllConfiguredPaths() []string {
 	paths := []string{}
 
-	// Add all configured save paths
 	if ds.config.QBittorrent.SavePaths.Default != "" {
 		paths = append(paths, ds.config.QBittorrent.SavePaths.Default)
 	}
@@ -283,7 +284,6 @@ func (ds *DiskService) getAllConfiguredPaths() []string {
 		paths = append(paths, ds.config.QBittorrent.SavePaths.Anime)
 	}
 
-	// Add disk space check path if different
 	if ds.config.QBittorrent.DiskSpaceCheckPath != "" {
 		found := false
 		for _, existing := range paths {
@@ -297,7 +297,6 @@ func (ds *DiskService) getAllConfiguredPaths() []string {
 		}
 	}
 
-	// Remove duplicates and empty paths
 	uniquePaths := []string{}
 	seen := make(map[string]bool)
 	for _, path := range paths {
@@ -310,7 +309,126 @@ func (ds *DiskService) getAllConfiguredPaths() []string {
 	return uniquePaths
 }
 
-// calculatePercentage calculates percentage with proper handling of zero division
+func (ds *DiskService) groupConfiguredPathsByDrive() (map[string][]string, []string, error) {
+	paths := ds.getAllConfiguredPaths()
+	if len(paths) == 0 {
+		return nil, nil, fmt.Errorf("no configured paths to check disk space")
+	}
+
+	driveGroups := make(map[string][]string)
+	driveOrder := []string{}
+	seenPaths := make(map[string]bool)
+
+	for _, path := range paths {
+		if seenPaths[path] {
+			continue
+		}
+		seenPaths[path] = true
+
+		driveID, err := ds.getDriveIdentifier(path)
+		if err != nil {
+			ds.logger.WithError(err).WithField("path", path).Warn("Failed to get drive identifier")
+			continue
+		}
+
+		if _, exists := driveGroups[driveID]; !exists {
+			driveOrder = append(driveOrder, driveID)
+		}
+		driveGroups[driveID] = append(driveGroups[driveID], path)
+	}
+
+	if len(driveGroups) == 0 {
+		return nil, nil, fmt.Errorf("no valid drives found for configured paths")
+	}
+
+	return driveGroups, driveOrder, nil
+}
+
+func (ds *DiskService) fetchDiskSpace(ctx context.Context, cacheKey, queryPath string) (*DiskInfo, error) {
+	if ds.cache != nil {
+		if cachedDisk, found := ds.cache.GetDiskSpace(cacheKey); found {
+			return ds.diskInfoFromCache(cacheKey, cachedDisk), nil
+		}
+	}
+
+	var diskInfo *DiskInfo
+	var err error
+
+	if ds.qbClient != nil {
+		diskInfo, err = ds.getDiskSpaceViaQBittorrent(ctx, queryPath)
+		if err != nil && shouldFallbackToLocalDisk(err) {
+			ds.logger.WithError(err).WithField("path", queryPath).Warn("qBittorrent disk API unavailable, falling back to local check")
+			diskInfo, err = ds.getDiskSpacePlatform(queryPath)
+		}
+	} else {
+		diskInfo, err = ds.getDiskSpacePlatform(queryPath)
+	}
+
+	if err != nil {
+		return nil, err
+	}
+
+	diskInfo.Path = cacheKey
+	if ds.cache != nil {
+		cacheInfo := cache.NewDiskSpaceInfo(cacheKey, diskInfo.Total, diskInfo.Used, diskInfo.Free)
+		ds.cache.SetDiskSpace(cacheKey, cacheInfo)
+	}
+
+	return diskInfo, nil
+}
+
+func (ds *DiskService) getDiskSpaceViaQBittorrent(ctx context.Context, queryPath string) (*DiskInfo, error) {
+	free, err := ds.qbClient.GetFreeSpaceAtPath(ctx, queryPath)
+	if err != nil {
+		return nil, err
+	}
+
+	return &DiskInfo{
+		Path:        queryPath,
+		Free:        free,
+		Available:   free,
+		Total:       0,
+		Used:        0,
+		UsedPercent: 0,
+		FreePercent: 0,
+		LastChecked: time.Now(),
+	}, nil
+}
+
+func shouldFallbackToLocalDisk(err error) bool {
+	var apiErr *qbittorrent.APIError
+	if errors.As(err, &apiErr) && apiErr.Code == http.StatusNotFound {
+		return true
+	}
+
+	var netErr net.Error
+	if errors.As(err, &netErr) {
+		return true
+	}
+
+	return strings.Contains(err.Error(), "request failed")
+}
+
+func (ds *DiskService) diskCacheKey(path string) string {
+	if driveID, ok := driveIdentifierFromWindowsPath(path); ok {
+		return "drive:" + driveID
+	}
+	return path
+}
+
+func (ds *DiskService) diskInfoFromCache(path string, cachedDisk *cache.DiskSpaceInfo) *DiskInfo {
+	return &DiskInfo{
+		Path:        path,
+		Total:       cachedDisk.Total,
+		Used:        cachedDisk.Used,
+		Free:        cachedDisk.Free,
+		Available:   cachedDisk.Free,
+		UsedPercent: ds.calculatePercentage(cachedDisk.Used, cachedDisk.Total),
+		FreePercent: ds.calculatePercentage(cachedDisk.Free, cachedDisk.Total),
+		LastChecked: cachedDisk.UpdatedAt,
+	}
+}
+
 func (ds *DiskService) calculatePercentage(part, total int64) float64 {
 	if total == 0 {
 		return 0.0
@@ -318,21 +436,35 @@ func (ds *DiskService) calculatePercentage(part, total int64) float64 {
 	return (float64(part) / float64(total)) * 100.0
 }
 
-// getDiskHealthStatus determines the health status based on free space percentage
 func (ds *DiskService) getDiskHealthStatus(diskInfo *DiskInfo) DiskHealthStatus {
-	freePercent := diskInfo.FreePercent
+	if diskInfo.Total > 0 {
+		freePercent := diskInfo.FreePercent
+		if freePercent < 5.0 {
+			return DiskHealthDanger
+		}
+		if freePercent < 10.0 {
+			return DiskHealthCritical
+		}
+		if freePercent < 20.0 {
+			return DiskHealthWarning
+		}
+		return DiskHealthGood
+	}
 
-	if freePercent < 5.0 {
+	thresholds := ds.config.QBittorrent.DiskSpaceThresholds
+	free := diskInfo.Free
+	if free < thresholds.DangerFreeBytes() {
 		return DiskHealthDanger
-	} else if freePercent < 10.0 {
+	}
+	if free < thresholds.CriticalFreeBytes() {
 		return DiskHealthCritical
-	} else if freePercent < 20.0 {
+	}
+	if free < thresholds.WarnFreeBytes() {
 		return DiskHealthWarning
 	}
 	return DiskHealthGood
 }
 
-// isWorseHealth compares two health statuses and returns true if the first is worse
 func (ds *DiskService) isWorseHealth(health1, health2 DiskHealthStatus) bool {
 	healthOrder := map[DiskHealthStatus]int{
 		DiskHealthGood:     0,
@@ -343,7 +475,6 @@ func (ds *DiskService) isWorseHealth(health1, health2 DiskHealthStatus) bool {
 	return healthOrder[health1] > healthOrder[health2]
 }
 
-// Legacy compatibility method for qBittorrent client
 func (ds *DiskService) GetDiskSpaceForClient(ctx context.Context, path string) (*qbittorrent.DiskSpace, error) {
 	diskInfo, err := ds.GetDiskSpace(ctx, path)
 	if err != nil {

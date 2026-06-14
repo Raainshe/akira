@@ -408,59 +408,22 @@ Examples:
 func runDiskCommand(ctx context.Context, diskService *core.DiskService,
 	customPath string, jsonOutput bool) error {
 
-	var diskInfos []*cli.DiskSpaceInfo
-
 	if customPath != "" {
-		// Check specific path
 		diskSpace, err := diskService.GetDiskSpace(ctx, customPath)
 		if err != nil {
 			return fmt.Errorf("failed to get disk space for path '%s': %w", customPath, err)
 		}
 
 		info := cli.ConvertDiskSpaceInfo(customPath, diskSpace.Used, diskSpace.Free, diskSpace.Total)
-		diskInfos = append(diskInfos, info)
-
-	} else {
-		// Get all configured qBittorrent paths from environment
-		// We'll use a simple approach and check common paths for now
-		paths := []string{
-			os.Getenv("QBITTORRENT_DEFAULT_SAVE_PATH"),
-			os.Getenv("QBITTORRENT_SERIES_SAVE_PATH"),
-			os.Getenv("QBITTORRENT_MOVIES_SAVE_PATH"),
-			os.Getenv("QBITTORRENT_ANIME_SAVE_PATH"),
-		}
-
-		// Remove duplicates and empty paths
-		uniquePaths := make(map[string]bool)
-		var validPaths []string
-
-		for _, path := range paths {
-			if path != "" && !uniquePaths[path] {
-				uniquePaths[path] = true
-				validPaths = append(validPaths, path)
-			}
-		}
-
-		// Get disk space for each unique path
-		for _, path := range validPaths {
-			diskSpace, err := diskService.GetDiskSpace(ctx, path)
-			if err != nil {
-				// Log error but continue with other paths
-				fmt.Fprintf(os.Stderr, "⚠️  Warning: Failed to get disk space for '%s': %v\n", path, err)
-				continue
-			}
-
-			info := cli.ConvertDiskSpaceInfo(path, diskSpace.Used, diskSpace.Free, diskSpace.Total)
-			diskInfos = append(diskInfos, info)
-		}
-
-		if len(diskInfos) == 0 {
-			return fmt.Errorf("no valid paths found to check disk space")
-		}
+		return cli.PrintDiskSpaceInfo([]*cli.DiskSpaceInfo{info}, jsonOutput)
 	}
 
-	// Print results
-	return cli.PrintDiskSpaceInfo(diskInfos, jsonOutput)
+	summary, err := diskService.GetAllDiskSpaces(ctx)
+	if err != nil {
+		return fmt.Errorf("failed to get disk space summary: %w", err)
+	}
+
+	return cli.PrintDiskSummary(summary, jsonOutput)
 }
 
 // runAddCommand implements the add magnet command functionality

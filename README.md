@@ -93,9 +93,8 @@ make docker-dev-down
 **Configuration notes:**
 
 - Set `QBITTORRENT_URL` to your qBittorrent Web UI (e.g. `http://192.168.0.101:8080` or `http://host.docker.internal:8080` if qBittorrent runs on the Docker host).
-- `QBITTORRENT_*_SAVE_PATH` values must be **qBittorrent's paths** (e.g. `E:\Series` on Windows), not paths inside the container.
+- `QBITTORRENT_*_SAVE_PATH` values must be **qBittorrent's paths** (e.g. `E:\Series` on Windows), not paths inside the container. Disk space is queried via qBittorrent's `getFreeSpaceAtPath` API, so no host volume mounts are required for `/disk`.
 - Logs and seeding state are persisted in `./data`.
-- For Discord disk-space commands to reflect real storage, mount the host download drive into the container and set `DISK_SPACE_CHECK_PATH` to the mount point (see `.env.example`).
 
 #### Production deployment (Windows Server auto-update)
 
@@ -226,6 +225,10 @@ The bot uses environment variables for configuration. See `.env.example` for all
 - `QBITTORRENT_URL` - qBittorrent Web UI URL
 - `QBITTORRENT_USERNAME` - qBittorrent username
 - `QBITTORRENT_PASSWORD` - qBittorrent password
+- `QBITTORRENT_*_SAVE_PATH` - qBittorrent save paths used for disk space checks (one row per drive in `/disk`)
+- `DISK_SPACE_WARN_FREE_GB` / `DISK_SPACE_CRITICAL_FREE_GB` / `DISK_SPACE_DANGER_FREE_GB` - Free-space health thresholds when total capacity is unknown
+
+Disk space checks use qBittorrent's `getFreeSpaceAtPath` API (qBittorrent 5.x or recent 4.6+). Older versions fall back to local OS checks when the endpoint is unavailable.
 
 ## Development
 

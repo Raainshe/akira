@@ -236,7 +236,7 @@ func initializeServices(ctx context.Context) (*AppServices, error) {
 
 	// Initialize core services
 	torrentService := core.NewTorrentService(qbClient, cfg, cacheManager)
-	diskService := core.NewDiskService(cfg, cacheManager)
+	diskService := core.NewDiskService(cfg, cacheManager, qbClient)
 	seedingService := core.NewSeedingService(cfg, torrentService, qbClient)
 
 	// Start seeding service

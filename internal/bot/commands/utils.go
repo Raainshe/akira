@@ -177,18 +177,18 @@ func splitContent(content string, maxLength int) []string {
 func formatDiskUsage(diskInfo *core.DiskInfo) string {
 	var builder strings.Builder
 
-	// Calculate usage percentage
-	usagePercent := diskInfo.UsedPercent
-
-	// Choose color based on usage
-	usageBar := getUsageBar(usagePercent)
-
 	builder.WriteString(fmt.Sprintf("**%s**\n", diskInfo.Path))
+	if diskInfo.Total == 0 {
+		builder.WriteString(fmt.Sprintf("Available: %s\n\n", formatBytes(diskInfo.Free)))
+		return builder.String()
+	}
+
+	usageBar := getUsageBar(diskInfo.UsedPercent)
 	builder.WriteString(fmt.Sprintf("%s\n", usageBar))
 	builder.WriteString(fmt.Sprintf("Used: %s / %s (%.1f%%)\n\n",
 		formatBytes(diskInfo.Used),
 		formatBytes(diskInfo.Total),
-		usagePercent))
+		diskInfo.UsedPercent))
 
 	return builder.String()
 }
