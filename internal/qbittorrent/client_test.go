@@ -105,3 +105,47 @@ func TestParseAddTorrentResponse_UnrecognizedBody(t *testing.T) {
 		t.Fatalf("expected nil result on error, got %+v", result)
 	}
 }
+
+func TestParseFreeSpaceResponse_PlainInteger(t *testing.T) {
+	free, err := parseFreeSpaceResponse([]byte("1234567890"))
+	if err != nil {
+		t.Fatalf("expected success, got error: %v", err)
+	}
+	if free != 1234567890 {
+		t.Fatalf("expected 1234567890, got %d", free)
+	}
+}
+
+func TestParseFreeSpaceResponse_QuotedInteger(t *testing.T) {
+	free, err := parseFreeSpaceResponse([]byte(`"1234567890"`))
+	if err != nil {
+		t.Fatalf("expected success, got error: %v", err)
+	}
+	if free != 1234567890 {
+		t.Fatalf("expected 1234567890, got %d", free)
+	}
+}
+
+func TestParseFreeSpaceResponse_JSONNumber(t *testing.T) {
+	free, err := parseFreeSpaceResponse([]byte(`9876543210`))
+	if err != nil {
+		t.Fatalf("expected success, got error: %v", err)
+	}
+	if free != 9876543210 {
+		t.Fatalf("expected 9876543210, got %d", free)
+	}
+}
+
+func TestParseFreeSpaceResponse_InvalidBody(t *testing.T) {
+	_, err := parseFreeSpaceResponse([]byte("not-a-number"))
+	if err == nil {
+		t.Fatal("expected error for invalid body")
+	}
+}
+
+func TestParseFreeSpaceResponse_NegativeValue(t *testing.T) {
+	_, err := parseFreeSpaceResponse([]byte("-1"))
+	if err == nil {
+		t.Fatal("expected error for negative free space")
+	}
+}

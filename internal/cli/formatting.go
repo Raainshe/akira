@@ -9,6 +9,7 @@ import (
 
 	"github.com/fatih/color"
 
+	"github.com/raainshe/akira/internal/core"
 	"github.com/raainshe/akira/internal/qbittorrent"
 )
 
@@ -402,10 +403,14 @@ func PrintDiskSpaceInfo(diskInfos []*DiskSpaceInfo, jsonOutput bool) error {
 	warningCount := 0
 
 	for _, info := range diskInfos {
-		// Print path header
 		fmt.Printf("📁 %s\n", ColorHeader.Sprint(info.Path))
 
-		// Create progress bar
+		if info.Total == 0 {
+			fmt.Printf("%s available\n\n", info.FreeStr)
+			totalFree += info.Free
+			continue
+		}
+
 		progressBar := CreateDiskProgressBar(info.Percentage, 60)
 
 		// Print progress bar
@@ -456,6 +461,53 @@ func PrintDiskSpaceInfo(diskInfos []*DiskSpaceInfo, jsonOutput bool) error {
 		}
 		if criticalCount == 0 && warningCount == 0 {
 			fmt.Printf("🟢 %s: All paths healthy\n", ColorSeeding.Sprint("STATUS"))
+		}
+	}
+
+	return nil
+}
+
+// PrintDiskSummary prints drive-centric disk space information
+func PrintDiskSummary(summary *core.DiskSummary, jsonOutput bool) error {
+	if summary == nil || len(summary.Drives) == 0 {
+		fmt.Println("💾 No disk information available")
+		return nil
+	}
+
+	if jsonOutput {
+		jsonData, err := json.MarshalIndent(summary, "", "  ")
+		if err != nil {
+			return fmt.Errorf("failed to marshal JSON: %w", err)
+		}
+		fmt.Println(string(jsonData))
+		return nil
+	}
+
+	fmt.Printf("💾 %s\n\n", ColorHeader.Sprintf("Disk Space Overview"))
+	fmt.Printf("Total available (unique drives): %s\n", FormatBytes(summary.TotalFree))
+	fmt.Printf("Worst health: %s\n\n", summary.WorstHealth)
+
+	for _, driveID := range summary.DriveOrder {
+		drive := summary.Drives[driveID]
+		if drive == nil {
+			continue
+		}
+
+		fmt.Printf("📀 %s\n", ColorHeader.Sprint(drive.DriveID))
+		fmt.Printf("   Available: %s (%s)\n", FormatBytes(drive.Free), drive.Health)
+		if len(drive.Paths) > 0 {
+			fmt.Printf("   Paths: %s\n", strings.Join(drive.Paths, ", "))
+		}
+		fmt.Println()
+	}
+
+	if len(summary.WarningPaths) > 0 || len(summary.CriticalPaths) > 0 {
+		fmt.Printf("⚠️  %s\n", ColorHeader.Sprint("Warnings"))
+		if len(summary.WarningPaths) > 0 {
+			fmt.Printf("Warning drives: %s\n", strings.Join(summary.WarningPaths, ", "))
+		}
+		if len(summary.CriticalPaths) > 0 {
+			fmt.Printf("Critical drives: %s\n", strings.Join(summary.CriticalPaths, ", "))
 		}
 	}
 

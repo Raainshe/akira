@@ -54,6 +54,10 @@ func (ds *DiskService) getDiskSpacePlatform(path string) (*DiskInfo, error) {
 // getDriveIdentifierPlatform returns a unique identifier for the filesystem (Unix)
 // Uses filesystem device ID to identify unique filesystems
 func (ds *DiskService) getDriveIdentifierPlatform(path string) (string, error) {
+	if driveID, ok := driveIdentifierFromWindowsPath(path); ok {
+		return driveID, nil
+	}
+
 	var stat syscall.Statfs_t
 	err := syscall.Statfs(path, &stat)
 	if err != nil {

@@ -67,6 +67,10 @@ func (ds *DiskService) getDiskSpacePlatform(path string) (*DiskInfo, error) {
 
 // getDriveIdentifierPlatform returns the drive letter for Windows paths (e.g., "C:\")
 func (ds *DiskService) getDriveIdentifierPlatform(path string) (string, error) {
+	if driveID, ok := driveIdentifierFromWindowsPath(path); ok {
+		return driveID, nil
+	}
+
 	volumeName := filepath.VolumeName(path)
 	if volumeName == "" {
 		return "", fmt.Errorf("could not determine drive for path: %s", path)

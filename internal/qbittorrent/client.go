@@ -613,16 +613,102 @@ func (c *Client) GetServerState(ctx context.Context) (*ServerState, error) {
 	return &state, nil
 }
 
-// GetDiskSpace retrieves disk space information for a given path
-func (c *Client) GetDiskSpace(ctx context.Context, path string) (*DiskSpace, error) {
+// GetFreeSpaceAtPath returns available bytes at the given path via qBittorrent Web API.
+func (c *Client) GetFreeSpaceAtPath(ctx context.Context, path string) (int64, error) {
 	if err := c.ensureAuthenticated(ctx); err != nil {
-		return nil, err
+		return 0, err
 	}
 
-	c.logger.WithField("path", path).Debug("Fetching disk space")
+	c.logger.WithField("path", path).Debug("Fetching free disk space from qBittorrent")
 
-	// qBittorrent doesn't have a direct disk space API, so we'll use a system call
-	// This is a placeholder - in a real implementation, you'd use syscall or a library
-	// For now, we'll return an error indicating this needs platform-specific implementation
-	return nil, fmt.Errorf("disk space checking not implemented - requires platform-specific code")
+	actions := []string{"getFreeSpaceAtPath", "getFreeSpaceAtPathAction"}
+	var lastErr error
+	for _, action := range actions {
+		free, err := c.getFreeSpaceAtPathAction(ctx, action, path)
+		if err == nil {
+			return free, nil
+		}
+		var apiErr *APIError
+		if errors.As(err, &apiErr) && apiErr.Code == http.StatusNotFound {
+			lastErr = err
+			continue
+		}
+		return 0, err
+	}
+	if lastErr != nil {
+		return 0, lastErr
+	}
+	return 0, fmt.Errorf("free space endpoint not available")
+}
+
+func (c *Client) getFreeSpaceAtPathAction(ctx context.Context, action, path string) (int64, error) {
+	query := url.Values{}
+	query.Set("path", path)
+	endpoint := "/api/v2/app/" + action
+
+	reqURL := c.baseURL.ResolveReference(&url.URL{Path: endpoint, RawQuery: query.Encode()})
+
+	req, err := http.NewRequestWithContext(ctx, http.MethodGet, reqURL.String(), nil)
+	if err != nil {
+		return 0, fmt.Errorf("failed to create request: %w", err)
+	}
+
+	resp, err := c.httpClient.Do(req)
+	if err != nil {
+		return 0, fmt.Errorf("request failed: %w", err)
+	}
+	defer resp.Body.Close()
+
+	respBody, err := io.ReadAll(resp.Body)
+	if err != nil {
+		return 0, fmt.Errorf("failed to read response body: %w", err)
+	}
+
+	if resp.StatusCode >= 400 {
+		return 0, &APIError{
+			Code:    resp.StatusCode,
+			Message: resp.Status,
+			Details: string(respBody),
+		}
+	}
+
+	return parseFreeSpaceResponse(respBody)
+}
+
+func parseFreeSpaceResponse(body []byte) (int64, error) {
+	text := strings.TrimSpace(string(body))
+	if text == "" {
+		return 0, fmt.Errorf("empty free space response")
+	}
+
+	var jsonNumber int64
+	if err := json.Unmarshal(body, &jsonNumber); err == nil {
+		if jsonNumber < 0 {
+			return 0, fmt.Errorf("negative free space: %d", jsonNumber)
+		}
+		return jsonNumber, nil
+	}
+
+	var jsonString string
+	if err := json.Unmarshal(body, &jsonString); err == nil {
+		text = strings.TrimSpace(jsonString)
+	}
+
+	free, err := strconv.ParseInt(text, 10, 64)
+	if err != nil {
+		return 0, fmt.Errorf("invalid free space response: %w", err)
+	}
+	if free < 0 {
+		return 0, fmt.Errorf("negative free space: %d", free)
+	}
+	return free, nil
+}
+
+// GetDiskSpace retrieves available disk space for a given path via qBittorrent.
+func (c *Client) GetDiskSpace(ctx context.Context, path string) (*DiskSpace, error) {
+	free, err := c.GetFreeSpaceAtPath(ctx, path)
+	if err != nil {
+		return nil, err
+	}
+	return &DiskSpace{Free: free}, nil
 }

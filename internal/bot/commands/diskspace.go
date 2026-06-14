@@ -1,7 +1,6 @@
 package commands
 
 import (
-	"bytes"
 	"context"
 	"fmt"
 	"strings"
@@ -14,96 +13,64 @@ import (
 func HandleDiskCommand(s *discordgo.Session, i *discordgo.InteractionCreate, diskService *core.DiskService) {
 	ctx := context.Background()
 
-	// Get disk space for all configured paths
 	diskSummary, err := diskService.GetAllDiskSpaces(ctx)
 	if err != nil {
 		respondWithError(s, i, fmt.Sprintf("Failed to get disk information: %v", err))
 		return
 	}
 
-	// Generate pie chart
-	chartBytes, err := generateMultiDiskPieChart(diskSummary)
-	if err != nil {
-		// If chart generation fails, fall back to text-only response
-		fmt.Printf("Warning: Failed to generate pie chart: %v\n", err)
-		chartBytes = nil
-	}
-
-	// Format response
 	content := formatDiskSummary(diskSummary)
+	embed := createInfoEmbed("💾 Disk Space", content)
 
-	// Create embed
-	embed := createInfoEmbed("💾 Disk Usage", content)
-
-	// Prepare response data
-	responseData := &discordgo.InteractionResponseData{
-		Embeds: []*discordgo.MessageEmbed{embed},
-	}
-
-	// Add chart image if available
-	if chartBytes != nil {
-		responseData.Files = []*discordgo.File{
-			{
-				Name:        "disk_usage_chart.png",
-				ContentType: "image/png",
-				Reader:      bytes.NewReader(chartBytes),
-			},
-		}
-	}
-
-	// Send response
 	err = s.InteractionRespond(i.Interaction, &discordgo.InteractionResponse{
 		Type: discordgo.InteractionResponseChannelMessageWithSource,
-		Data: responseData,
+		Data: &discordgo.InteractionResponseData{
+			Embeds: []*discordgo.MessageEmbed{embed},
+		},
 	})
-
 	if err != nil {
 		fmt.Printf("Failed to send disk response: %v\n", err)
 	}
 }
 
-// formatDiskSummary formats disk summary for Discord display
 func formatDiskSummary(summary *core.DiskSummary) string {
-	if summary == nil || len(summary.Paths) == 0 {
+	if summary == nil || len(summary.Drives) == 0 {
 		return "No disk information available."
 	}
 
 	var builder strings.Builder
 
-	// Overall summary
-	builder.WriteString(fmt.Sprintf("**Overall Summary:**\n"))
-	builder.WriteString(fmt.Sprintf("Total Space: %s\n", formatBytes(summary.TotalSpace)))
-	builder.WriteString(fmt.Sprintf("Total Used: %s\n", formatBytes(summary.TotalUsed)))
-	builder.WriteString(fmt.Sprintf("Total Free: %s\n", formatBytes(summary.TotalFree)))
-	builder.WriteString(fmt.Sprintf("Worst Health: %s\n\n", getHealthEmoji(summary.WorstHealth)))
+	builder.WriteString("**Overall Summary:**\n")
+	builder.WriteString(fmt.Sprintf("Total available (unique drives): %s\n", formatBytes(summary.TotalFree)))
+	builder.WriteString(fmt.Sprintf("Worst health: %s\n\n", getHealthEmoji(summary.WorstHealth)))
 
-	// Individual paths
-	builder.WriteString("**Individual Paths:**\n")
-	for path, diskInfo := range summary.Paths {
-		usageBar := getUsageBar(diskInfo.UsedPercent)
-		builder.WriteString(fmt.Sprintf("**%s**\n", path))
-		builder.WriteString(fmt.Sprintf("%s\n", usageBar))
-		builder.WriteString(fmt.Sprintf("Used: %s / %s (%.1f%%)\n\n",
-			formatBytes(diskInfo.Used),
-			formatBytes(diskInfo.Total),
-			diskInfo.UsedPercent))
+	builder.WriteString("**Drives:**\n")
+	for _, driveID := range summary.DriveOrder {
+		drive := summary.Drives[driveID]
+		if drive == nil {
+			continue
+		}
+		builder.WriteString(fmt.Sprintf("**%s**\n", drive.DriveID))
+		builder.WriteString(fmt.Sprintf("  Available: %s  %s\n", formatBytes(drive.Free), getHealthEmoji(drive.Health)))
+		if len(drive.Paths) > 0 {
+			builder.WriteString(fmt.Sprintf("  Paths: %s\n", strings.Join(drive.Paths, ", ")))
+		}
+		builder.WriteString("\n")
 	}
 
-	// Warnings if any
 	if len(summary.WarningPaths) > 0 || len(summary.CriticalPaths) > 0 {
 		builder.WriteString("**⚠️ Warnings:**\n")
 		if len(summary.WarningPaths) > 0 {
-			builder.WriteString(fmt.Sprintf("Warning paths: %s\n", strings.Join(summary.WarningPaths, ", ")))
+			builder.WriteString(fmt.Sprintf("Warning drives: %s\n", strings.Join(summary.WarningPaths, ", ")))
 		}
 		if len(summary.CriticalPaths) > 0 {
-			builder.WriteString(fmt.Sprintf("Critical paths: %s\n", strings.Join(summary.CriticalPaths, ", ")))
+			builder.WriteString(fmt.Sprintf("Critical drives: %s\n", strings.Join(summary.CriticalPaths, ", ")))
 		}
 	}
 
 	return builder.String()
 }
 
-// getHealthEmoji returns emoji for disk health status
 func getHealthEmoji(health core.DiskHealthStatus) string {
 	switch health {
 	case core.DiskHealthGood:

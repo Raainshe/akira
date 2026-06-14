@@ -28,12 +28,34 @@ type DiscordConfig struct {
 
 // QBittorrentConfig holds qBittorrent client configuration
 type QBittorrentConfig struct {
-	URL                string          `json:"url"`
-	Username           string          `json:"username"`
-	Password           string          `json:"password"`
-	SavePaths          SavePathsConfig `json:"save_paths"`
-	DiskSpaceCheckPath string          `json:"disk_space_check_path"`
-	RequestTimeout     time.Duration   `json:"request_timeout"`
+	URL                 string                `json:"url"`
+	Username            string                `json:"username"`
+	Password            string                `json:"password"`
+	SavePaths           SavePathsConfig       `json:"save_paths"`
+	DiskSpaceCheckPath  string                `json:"disk_space_check_path"`
+	DiskSpaceThresholds DiskSpaceThresholds   `json:"disk_space_thresholds"`
+	RequestTimeout      time.Duration         `json:"request_timeout"`
+}
+
+// DiskSpaceThresholds holds absolute free-space health thresholds (in GB).
+type DiskSpaceThresholds struct {
+	WarnFreeGB     int64 `json:"warn_free_gb"`
+	CriticalFreeGB int64 `json:"critical_free_gb"`
+	DangerFreeGB   int64 `json:"danger_free_gb"`
+}
+
+const gibibyte = 1024 * 1024 * 1024
+
+func (t DiskSpaceThresholds) WarnFreeBytes() int64 {
+	return t.WarnFreeGB * gibibyte
+}
+
+func (t DiskSpaceThresholds) CriticalFreeBytes() int64 {
+	return t.CriticalFreeGB * gibibyte
+}
+
+func (t DiskSpaceThresholds) DangerFreeBytes() int64 {
+	return t.DangerFreeGB * gibibyte
 }
 
 // SavePathsConfig holds different category save paths
@@ -122,6 +144,9 @@ func LoadConfig() (*Config, error) {
 	}
 
 	config.QBittorrent.DiskSpaceCheckPath = getEnvOrDefault("DISK_SPACE_CHECK_PATH", "/")
+	config.QBittorrent.DiskSpaceThresholds.WarnFreeGB = int64(parseIntOrDefault("DISK_SPACE_WARN_FREE_GB", 100))
+	config.QBittorrent.DiskSpaceThresholds.CriticalFreeGB = int64(parseIntOrDefault("DISK_SPACE_CRITICAL_FREE_GB", 50))
+	config.QBittorrent.DiskSpaceThresholds.DangerFreeGB = int64(parseIntOrDefault("DISK_SPACE_DANGER_FREE_GB", 20))
 
 	// Load cache configuration
 	config.Cache.TorrentListTTL = parseDurationOrDefault("CACHE_TORRENT_LIST_TTL", 30*time.Second)
